@@ -50,9 +50,10 @@ router.post("/register", async (req, res) => {
 });
 
 // ================= LOGIN API =================
+
 router.post("/login", async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password , device_token , device_type } = req.body;
 
     // check user exist
     const user = await User.findOne({ email });
@@ -72,6 +73,9 @@ router.post("/login", async (req, res) => {
       "mySecretKey", // secret key (env file me rakhna production ke liye)
       { expiresIn: "1h" }
     );
+      user.device_token = device_token || user.device_token;
+      user.device_type = device_type || user.device_type;
+      await user.save();
 
     res.status(200).json({
       message: "Login successful",
@@ -89,5 +93,33 @@ router.post("/login", async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
+
+// ================= LOGOUT API =================
+
+router.post("/logout", async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    // check user exist
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(400).json({ message: "User not found" });
+    }
+
+    // clear device_token & device_type
+    // user.device_token = null;
+    // user.device_type = null;
+    // await user.save();
+
+    res.status(200).json({
+      message: "Logout successful, device info removed"
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+
 
 export default router;

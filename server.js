@@ -1,26 +1,23 @@
 import express from "express";
-import mongoose from "mongoose";
-import bodyParser from "body-parser";
-import cors from "cors";
+import sequelize from "./config/db.js";
+import User from "./models/User.js";
 import authRoutes from "./routes/auth.js";
+import dotenv from "dotenv";
 
+dotenv.config();
 const app = express();
-app.use(cors());
-app.use(bodyParser.json());
-
-// MongoDB connection
-mongoose.connect("mongodb://127.0.0.1:27017/paspasdb", {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-.then(() => console.log("MongoDB Connected"))
-.catch(err => console.log(err));
+app.use(express.json());
 
 // Routes
 app.use("/api/auth", authRoutes);
-console.log('mongo db runing');
 
-// Start server
-app.listen(3000, () => {
-  console.log("Server running on http://localhost:3000");
-});
+// DB connection
+sequelize
+  .sync() // table create karega agar exist nahi hai
+  .then(() => {
+    console.log("✅ Database connected & tables synced");
+    app.listen(process.env.PORT, () =>
+      console.log(`🚀 Server running on port ${process.env.PORT}`)
+    );
+  })
+  .catch((err) => console.log("❌ DB Error: ", err));

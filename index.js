@@ -1,23 +1,23 @@
 import express from "express";
-import sequelize from "./config/db.js";
-import User from "./models/User.js";
-import authRoutes from "./routes/auth.js";
 import dotenv from "dotenv";
+import mongoose from "mongoose";
+import routes from './routes/index.js'
 
 dotenv.config();
 const app = express();
 app.use(express.json());
 
 // Routes
-app.use("/api/auth", authRoutes);
+app.use("/api",routes);
 
-// DB connection
-sequelize
-  .sync() // table create karega agar exist nahi hai
-  .then(() => {
-    console.log("✅ Database connected & tables synced");
-    app.listen(process.env.PORT, () =>
-      console.log(`🚀 Server running on port ${process.env.PORT}`)
-    );
-  })
-  .catch((err) => console.log("❌ DB Error: ", err));
+mongoose.connect(process.env.MONGO_URL).then((r)=>{
+  console.log("db connected");
+  
+  app.listen(process.env.PORT,()=>console.log("server started"))
+}).catch((e)=>{
+  console.log(e);
+  
+})
+
+ 
+

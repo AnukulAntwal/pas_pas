@@ -1,41 +1,37 @@
-import { DataTypes } from "sequelize";
-import sequelize from "../config/db.js";
+import mongoose from "mongoose";
 
-const User = sequelize.define("User", {
-  first_name: {
-    type: DataTypes.STRING,
-    allowNull: false,
-  },
-  last_name: {
-    type: DataTypes.STRING,
-    allowNull: false,
-  },
-  phone_number: {
-    type: DataTypes.STRING,
-    allowNull: false,
-    unique: true,
-  },
-  email: {
-    type: DataTypes.STRING,
-    allowNull: false,
-    unique: true,
-    validate: {
-      isEmail: true,
+const userSchema = new mongoose.Schema(
+  {
+    first_name: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    last_name: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    phone_number: {
+      type: String,
+      required: true,
+      unique: true,
+      match: /^[0-9]{10}$/, // 10 digit number validation
+    },
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+    },
+    password: {
+      type: String,
+      required: true,
+      minlength: 5,
     },
   },
-  password: {
-    type: DataTypes.STRING,
-    allowNull: false,
-  },
-  device_token: {
-  type: DataTypes.STRING,
-  allowNull: true,   // 👈 optional banaya
-},
-device_type: {
-  type: DataTypes.ENUM("android", "ios", "web"),
-  allowNull: true,   // 👈 optional banaya
-},
+  { timestamps: true } // createdAt, updatedAt auto
+);
 
-});
-
+const User = mongoose.model("User", userSchema);
 export default User;

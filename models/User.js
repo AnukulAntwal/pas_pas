@@ -1,7 +1,9 @@
 import mongoose from "mongoose";
+import Counter from "../models/Counter.js"
 
 const userSchema = new mongoose.Schema(
   {
+    id: { type: Number, unique: true },  // ✅ integer id
     first_name: {
       type: String,
       required: true,
@@ -24,14 +26,41 @@ const userSchema = new mongoose.Schema(
       unique: true,
       lowercase: true,
     },
-    hpassword: {
+    password: {
       type: String,
       required: true,
-      minlength: 5,
+      minlength: 3,
     },
-  },
-  { timestamps: true } // createdAt, updatedAt auto
+     device_type: {
+      type: String,
+    },
+     device_token: {
+      type: String,
+    },
+    last_login:{
+      type: Date
+    },
+    
+  },  
+  {
+    timestamps: true ,
+    versionKey: false     // ✅ removes "__v"
+
+  }
 );
+
+// ✅ pre-save hook to auto increment ID
+userSchema.pre("save", async function (next) {
+  if (this.isNew) {
+    const counter = await Counter.findByIdAndUpdate(
+      { _id: "users" },              // counter for users collection
+      { $inc: { seq: 1 } },
+      { new: true, upsert: true }
+    );
+    this.id = counter.seq;
+  }
+  next();
+});
 
 const User = mongoose.model("User", userSchema);
 export default User;

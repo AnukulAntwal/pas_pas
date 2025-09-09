@@ -11,6 +11,8 @@ export const loginValidate = Joi.object({
     "string.min": "Password should be at least 3 characters",
     "any.required": "Password is required",
   }),
+  device_type: Joi.string().required(),
+  device_token: Joi.string().required()
 });
 
 

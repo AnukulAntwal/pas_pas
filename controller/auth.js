@@ -23,7 +23,7 @@ export const loginController = async (req, res) => {
     const userSave = await user.save()
     // 3. If matched → success response
     return res.status(200).json({
-      success: "success",
+      status: "success",
       message: "Login successful",
       data: userSave
     });
@@ -59,7 +59,7 @@ export const registerController = async (req, res) => {
 
     // 4. Success response
     return res.status(201).json({
-      success: "success",
+      status: "success",
       message: "User registered successfully",
       data: userDetails,
     });

@@ -10,10 +10,13 @@ export const loginController = async (req, res) => {
 
   try {
     const { email, password , device_type , device_token} = req.body;
-
-    // 2. Find user by email
+   
     const user = await User.findOne({ email });
     if (!user) {
+      return res.status(401).json({ error: "Invalid email or password" });
+    }
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
       return res.status(401).json({ error: "Invalid email or password" });
     }
     user.device_type = device_type;
@@ -21,7 +24,7 @@ export const loginController = async (req, res) => {
     user.last_login = new Date();
     
     const userSave = await user.save()
-    // 3. If matched → success response
+   
     return res.status(200).json({
       status: "success",
       message: "Login successful",

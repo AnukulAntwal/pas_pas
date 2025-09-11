@@ -2,6 +2,7 @@ import User from "../models/User.js";
 import { loginValidate, registerValidate } from "../validations/userValidate.js";
 import bcrypt from "bcryptjs";
 
+// Login api function
 export const loginController = async (req, res) => {
   
   const { error } = loginValidate.validate(req.body);

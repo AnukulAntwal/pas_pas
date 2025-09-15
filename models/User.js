@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import Counter from "../models/Counter.js"
+import moment from "moment";
 
 const userSchema = new mongoose.Schema(
   {
@@ -44,8 +45,9 @@ const userSchema = new mongoose.Schema(
   },  
   {
     timestamps: true ,
-    versionKey: false     // ✅ removes "__v"
-
+    versionKey: false,     // ✅ removes "__v"
+    toJSON: { getters: true },  // 👈 JSON response me getter apply hoga
+    toObject: { getters: true }, 
   }
 );
 
@@ -60,6 +62,14 @@ userSchema.pre("save", async function (next) {
     this.id = counter.seq;
   }
   next();
+});
+
+userSchema.path("createdAt").get(function (date) {
+  return moment(date).format("YYYY-MM-DD HH:mm:ss");
+});
+
+userSchema.path("updatedAt").get(function (date) {
+  return moment(date).format("YYYY-MM-DD HH:mm:ss");
 });
 
 const User = mongoose.model("User", userSchema);

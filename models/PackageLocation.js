@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import Counter from "../models/Counter.js"
 import moment from "moment";
+// import { required } from "joi";
 
 const packageLocationSchema = new mongoose.Schema(
   {
@@ -28,7 +29,11 @@ const packageLocationSchema = new mongoose.Schema(
       longitude: { type: Number, required: true },
       datetime: { type: Date, required: true },
     },
-
+    description: {
+      type: String,   
+      required: false,
+      trim: true
+    },
     status: {
       type: String,
       enum: ["pending","picked_up","on_the_way", "delivered","cancelled"],

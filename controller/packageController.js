@@ -1,29 +1,19 @@
-import Package from "../models/PackageLocation.js";
+import Package from "../models/Package.js";
 
 export const savePackage = async (req, res) => {
   try {
-    const {userId,pickup, drop, status ,description} = req.body;
-
-    if (!pickup || !drop) {
-      return res.status(400).json({ error: "pickup & drop are required" });
-    }
-
-    const newPackage = new Package({
-      userId,
-      pickup,
-      drop,
-      status,
-      description
-    });
-
+    const newPackage = new Package(req.body);
     const savedPackage = await newPackage.save();
 
     res.status(201).json({
-      success: "success",
+      success: true,
       message: "Package saved successfully",
       data: savedPackage,
     });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
   }
 };

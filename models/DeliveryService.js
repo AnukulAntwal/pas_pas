@@ -3,9 +3,9 @@ import moment from "moment";
 
 const deliveryServiceSchema = new mongoose.Schema(
   {
-    userId: {
+    uid: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      ref: "User",   // 🔗 user reference
       required: true,
     },
 
@@ -13,20 +13,22 @@ const deliveryServiceSchema = new mongoose.Schema(
     pickup_lat: { type: Number, required: true },
     pickup_long: { type: Number, required: true },
 
-    delivery_location: { type: String, required: true },
-    delivery_lat: { type: Number, required: true },
-    delivery_long: { type: Number, required: true },
+    destination_location: { type: String, required: true },
+    destination_lat: { type: Number, required: true },
+    destination_long: { type: Number, required: true },
 
-    service_type: { type: String, required: true },  // e.g. same-day, express
-    vehicle_type: { type: String, required: true },  // e.g. bike, car, van
-    price_estimate: { type: Number, required: true },
+    service_type: { type: String, required: true },   // e.g. document ,grocery,other  
+    vehicle_type: { type: String, required: true },   // e.g. bike, car, van
+    price: { type: Number, required: true },
 
     contact_number: { type: String, required: true },
-    package_description: { type: String },
 
-    delivery_date: { type: Date, required: true },
+    description: { type: String },
+
+    date_time: { type: Date, required: true },
   },
-  {
+  
+  {  
     timestamps: true,
     versionKey: false,
     toJSON: { getters: true },
@@ -35,6 +37,9 @@ const deliveryServiceSchema = new mongoose.Schema(
 );
 
 deliveryServiceSchema.path("createdAt").get(function (date) {
+  return moment(date).format("YYYY-MM-DD HH:mm:ss");
+});
+deliveryServiceSchema.path("date_time").get(function (date) {
   return moment(date).format("YYYY-MM-DD HH:mm:ss");
 });
 deliveryServiceSchema.path("updatedAt").get(function (date) {

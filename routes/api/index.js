@@ -8,7 +8,7 @@ const router = express.Router();
 
 // mount auth routes at /auth
 router.use('/auth', verifyCustomToken, authRoute);
-router.use('/package',verifyCustomToken, packageRoute);
-router.use('/delivery',verifyCustomToken, deliveryRoute);
+router.use('/publish',verifyCustomToken, packageRoute);
+router.use('/publish',verifyCustomToken, deliveryRoute);
 
 export default router;

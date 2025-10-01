@@ -7,7 +7,7 @@ export const saveDeliveryService = async (req, res) => {
 
     res.status(201).json({
       success: 'success',
-      message: "Delivery service saved successfully",
+      message: "Your service has been successfully published",
       data: savedService,
     });
   } catch (error) {

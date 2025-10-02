@@ -6,13 +6,13 @@ export const savePackage = async (req, res) => {
     const savedPackage = await newPackage.save();
 
     res.status(201).json({
-      success: true,
+      status: true,
       message: "Package saved successfully",
       data: savedPackage,
     });
   } catch (error) {
     res.status(500).json({
-      success: false,
+      status: false,
       error: error.message,
     });
   }

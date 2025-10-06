@@ -12,7 +12,7 @@ export const saveDeliveryService = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({
-      status: false,
+      status: 'fail',
       error: error.message,
     });
   }

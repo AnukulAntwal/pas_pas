@@ -32,7 +32,7 @@ export const loginController = async (req, res) => {
       data: userSave
     });
   } catch (e) {
-    return res.status(500).json({ error: e.message });
+    return res.status(500).json({status: 'fail', error: e.message });
   }
 };
 
@@ -68,6 +68,6 @@ export const registerController = async (req, res) => {
       data: userDetails,
     });
   } catch (e) {
-    return res.status(500).json({ error: e.message });
+    return res.status(500).json({ status: 'fail', error: e.message });
   }
 };

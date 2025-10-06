@@ -6,8 +6,8 @@ export const savePackage = async (req, res) => {
     const savedPackage = await newPackage.save();
 
     res.status(201).json({
-      status: true,
-      message: "Package saved successfully",
+      status: 'success',
+      message: "Your package has been successfully published",
       data: savedPackage,
     });
   } catch (error) {

@@ -9,13 +9,13 @@ const deliveryServiceSchema = new mongoose.Schema(
       required: true,
     },
 
-    pickup_location: { type: String, required: true },
-    pickup_lat: { type: Number, required: true },
-    pickup_long: { type: Number, required: true },
+    start_location: { type: String, required: true },
+    start_lat: { type: Number, required: true },
+    start_long: { type: Number, required: true },
 
-    destination_location: { type: String, required: true },
-    destination_lat: { type: Number, required: true },
-    destination_long: { type: Number, required: true },
+    end_location: { type: String, required: true },
+    end_lat: { type: Number, required: true },
+    end_long: { type: Number, required: true },
 
     service_type: { type: String, required: true },   // e.g. document ,grocery,other  
     vehicle_type: { type: String, required: true },   // e.g. bike, car, van

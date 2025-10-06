@@ -3,42 +3,43 @@ import moment from "moment";
 
 const packageSchema = new mongoose.Schema(
   {
-    userId: {
+    uid: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      ref: "User",   // 🔗 Linked to the user who created the package
       required: true,
     },
 
-    departure_location: { type: String, required: true },
-    departure_lat: { type: Number, required: true },
-    departure_long: { type: Number, required: true },
-
-    dest_location: { type: String, required: true },
-    dest_lat: { type: Number, required: true },
-    dest_long: { type: Number, required: true },
-
-    description: { type: String },
     package_type: { type: String, required: true }, // e.g. document, parcel
-    package_weight: { type: Number, required: true }, // in kg
-    package_dimension: { type: String }, // e.g. 10x20x30 cm
+    package_size: { type: String, required: true }, // e.g. small, medium, large
+    description: { type: String },
 
-    package_date: { type: Date, required: true },
-    package_time: { type: String, required: true }, // e.g. "14:30"
+    pickup_location: { type: String, required: true },
+    pickup_lat: { type: Number, required: true },
+    pickup_long: { type: Number, required: true },
 
-    pickup_user: { type: String, required: true },
-    pickup_number: { type: String, required: true },
+    drop_location: { type: String, required: true },
+    drop_lat: { type: Number, required: true },
+    drop_long: { type: Number, required: true },
 
-    drop_off_user: { type: String, required: true },
-    drop_off_name: { type: String, required: true },
+    date_time: { type: Date, required: true },
+
+    sender_contact_number: { type: String, required: true },
+    receiver_contact_number: { type: String, required: true },
+
+    price: { type: Number, required: true },
+
+    is_signature_required: { type: Boolean, default: false },
   },
   {
     timestamps: true,
     versionKey: false,
+    id: false, // 👈 removes duplicate virtual id field
     toJSON: { getters: true },
     toObject: { getters: true },
   }
 );
 
+// ✅ Format createdAt & updatedAt in response
 packageSchema.path("createdAt").get(function (date) {
   return moment(date).format("YYYY-MM-DD HH:mm:ss");
 });

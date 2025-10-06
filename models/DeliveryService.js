@@ -18,7 +18,7 @@ const deliveryServiceSchema = new mongoose.Schema(
     end_long: { type: Number, required: true },
 
     service_type: { type: String, required: true },   // e.g. document ,grocery,other  
-    vehicle_type: { type: String, required: true },   // e.g. bike, car, van
+    transport_type: { type: String, required: true },   // e.g. bike, car, van
     price: { type: Number, required: true },
 
     contact_number: { type: String, required: true },

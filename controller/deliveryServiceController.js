@@ -17,3 +17,31 @@ export const saveDeliveryService = async (req, res) => {
     });
   }
 };
+
+export const getServiceDetails = async (req,res)=> {
+  try{
+
+    const service = await DeliveryService.find().populate({
+      path:"uid",
+      select:"first_name last_name email phone_number device_type device_token"
+    }).sort({created: -1});
+
+    if(!service || service.length == 0){
+      return res.status(404).json({ status:'fail', message: "No service records found" });
+    }
+
+     return res.status(200).json({
+      status:'success',
+      message: "Service details fetched successfully",
+      data: service,
+    });
+
+  }catch(error){ 
+
+     return res.status(500).json({
+      status: 'error',
+      message: "Error fetching service details",
+      error: error.message,
+    });
+  }
+}

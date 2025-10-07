@@ -39,7 +39,7 @@ export const getServiceDetails = async (req,res)=> {
   }catch(error){ 
 
      return res.status(500).json({
-      status: 'error',
+      status: 'fail',
       message: "Error fetching service details",
       error: error.message,
     });

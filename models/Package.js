@@ -20,6 +20,8 @@ const packageSchema = new mongoose.Schema(
     drop_location: { type: String, required: true },
     drop_lat: { type: Number, required: true },
     drop_long: { type: Number, required: true },
+    sender_name: { type: String, required: true },
+    receiver_name: { type: String, required: true },
 
     date_time: { type: Date, required: true },
 

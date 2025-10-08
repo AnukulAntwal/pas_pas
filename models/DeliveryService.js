@@ -17,6 +17,18 @@ const deliveryServiceSchema = new mongoose.Schema(
     end_lat: { type: Number, required: true },
     end_long: { type: Number, required: true },
 
+     // 🆕 Store the full path between start and end
+    route_path: [
+      {
+        lat: { type: Number },
+        long: { type: Number },
+        _id: false
+      },
+    ],
+
+    // 🆕 Optionally store Google polyline string (compact format)
+    route_polyline: { type: String },
+    
     transport_type: { type: String, required: true },   // e.g. bike, car, van
     price: { type: Number, required: true },
 

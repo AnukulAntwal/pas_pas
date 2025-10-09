@@ -26,32 +26,87 @@ export const saveDeliveryService = async (req, res) => {
   try {
     const { start_lat, start_long, end_lat, end_long } = req.body;
 
-    let route_path = [];
+    // let route_path = [];
 
+    //  if (start_lat && start_long && end_lat && end_long) {
+    //   const googleApiKey = process.env.GOOGLE_MAPS_API_KEY; // make sure you have your API key in env
+
+    //   const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${start_lat},${start_long}&destination=${end_lat},${end_long}&key=${googleApiKey}`;
+
+    //   const response = await axios.get(url);
+
+    //   const steps = response.data.routes[0]?.legs[0]?.steps;
+
+    //   if (steps && steps.length) {
+    //     // loop through steps and get lat/long
+    //     steps.forEach(step => {
+    //       // each step has start_location & end_location
+    //       route_path.push({
+    //         lat: step.start_location.lat,
+    //         long: step.start_location.lng
+    //       });
+    //     });
+
+    //     // add final destination point
+    //     route_path.push({ lat: end_lat, long: end_long });
+    //   }
+    // }
     // ✅ Step 1: Generate route_path using Google Maps Directions API
-    if (start_lat && start_long && end_lat && end_long) {
-      const googleApiKey = process.env.GOOGLE_MAPS_API_KEY; // make sure you have your API key in env
+      if (start_lat && start_long && end_lat && end_long) {
+      const googleApiKey = process.env.GOOGLE_MAPS_API_KEY;
+      const route_path = [];
 
-      const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${start_lat},${start_long}&destination=${end_lat},${end_long}&key=${googleApiKey}`;
+      // 🧭 1️⃣ Get main route (start → end)
+      const mainUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${start_lat},${start_long}&destination=${end_lat},${end_long}&key=${googleApiKey}`;
+      const mainResponse = await axios.get(mainUrl);
 
-      const response = await axios.get(url);
+      const mainSteps = mainResponse.data.routes[0]?.legs[0]?.steps;
 
-      const steps = response.data.routes[0]?.legs[0]?.steps;
-
-      if (steps && steps.length) {
-        // loop through steps and get lat/long
-        steps.forEach(step => {
-          // each step has start_location & end_location
+      if (mainSteps && mainSteps.length) {
+        mainSteps.forEach(step => {
           route_path.push({
             lat: step.start_location.lat,
             long: step.start_location.lng
           });
         });
-
-        // add final destination point
         route_path.push({ lat: end_lat, long: end_long });
       }
+
+      // 📍 2️⃣ Get extended route (from end_location → +20km ahead)
+      const extendDistance = 20; // km
+      const earthRadius = 6371; // km
+      const extendBearing = 90; // East (can adjust depending on direction)
+
+      // calculate new coordinates ~20km ahead of end location
+      const newLat =
+        end_lat + (extendDistance / earthRadius) * (180 / Math.PI);
+      const newLong =
+        end_long +
+        (extendDistance / earthRadius) *
+          (180 / Math.PI) /
+          Math.cos((end_lat * Math.PI) / 180);
+
+      // get route for extended path (end → extended point)
+      const extendUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${end_lat},${end_long}&destination=${newLat},${newLong}&key=${googleApiKey}`;
+      const extendResponse = await axios.get(extendUrl);
+
+      const extendSteps = extendResponse.data.routes[0]?.legs[0]?.steps;
+
+      if (extendSteps && extendSteps.length) {
+        extendSteps.forEach(step => {
+          route_path.push({
+            lat: step.start_location.lat,
+            long: step.start_location.lng
+          });
+        });
+        route_path.push({ lat: newLat, long: newLong });
+      }
+
+      // ✅ Now route_path contains:
+      //    - Start → End route points
+      //    - + Extended 20 km route points beyond end location
     }
+
 
     // ✅ Step 2: Save the service including route_path
     const newService = new DeliveryService({

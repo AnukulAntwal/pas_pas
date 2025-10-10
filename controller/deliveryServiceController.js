@@ -61,7 +61,7 @@ export const saveDeliveryService = async (req, res) => {
 
     const savedService = await newService.save();
 
-    res.status(201).json({
+    res.status(200).json({
       status: 'success',
       message: "Your service has been successfully published",
       data: savedService,
@@ -160,7 +160,7 @@ export const getServices = async (req, res) => {
 
     // 🧩 Step 3: Handle no results
     if (!rides.length) {
-      return res.status(404).json({
+      return res.status(200).json({
         status: 'success',
         message: "No rides found for this route on the given date",
         data: [],
@@ -168,7 +168,7 @@ export const getServices = async (req, res) => {
     }
 
     // ✅ Step 4: Success response
-    res.json({
+    res.status(200).json({
       status: 'success',
       count: rides.length,
       message: "Matching rides found!",
@@ -183,8 +183,3 @@ export const getServices = async (req, res) => {
     });
   }
 };
-
-
-
-
-

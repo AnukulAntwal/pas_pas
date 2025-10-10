@@ -160,7 +160,7 @@ export const getServices = async (req, res) => {
 
     // 🧩 Step 3: Handle no results
     if (!rides.length) {
-      return res.status(200).json({
+     res.status(200).json({
         status: 'success',
         message: "No rides found for this route on the given date",
         data: [],

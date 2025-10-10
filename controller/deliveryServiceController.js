@@ -163,6 +163,7 @@ export const getServices = async (req, res) => {
       return res.status(404).json({
         status: 'success',
         message: "No rides found for this route on the given date",
+        data: [],
       });
     }
 

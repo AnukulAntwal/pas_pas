@@ -99,7 +99,7 @@ export const getServices = async (req, res) => {
     // 🧩 Step 1: Validate input
     if (!start_lat || !start_long || !end_lat || !end_long || !date_time) {
       return res.status(400).json({
-        success: false,
+        success: 'fail',
         message: "Please provide start_lat, start_long, end_lat, end_long, and date_time",
       });
     }

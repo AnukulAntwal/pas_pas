@@ -155,7 +155,7 @@ export const getServices = async (req, res) => {
         ]
       },
       { route_path: 0 } 
-    ).populate('uid', 'name email phone') // ← populate uid with specific user fields
+    ).populate('uid', 'first_name last_name email phone_number') // ← populate uid with specific user fields
     .select('-route_path').sort({ date_time: 1 });
 
     // 🧩 Step 3: Handle no results

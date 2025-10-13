@@ -26,6 +26,7 @@ const packageSchema = new mongoose.Schema(
     {
       lat: { type: Number },
       long: { type: Number },
+      _id: false
     },
   ],
 

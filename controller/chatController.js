@@ -1,44 +1,56 @@
 import Chat from "../models/Chat.js";
+import mongoose from "mongoose";
 
-// 📤 Send message
+// Send message
 export const sendMessage = async (req, res) => {
   try {
-    const { ride_id, package_id, sender_id, receiver_id, message } = req.body;
+    const { sender_id, receiver_id, conversation_for, message, conversation_id } = req.body;
 
-    if (!sender_id || !receiver_id || !message || (!ride_id && !package_id)) {
-      return res.status(400).json({ status: "fail", message: "Required fields missing" });
+    // ✅ Validation
+    if (!sender_id || !receiver_id || !conversation_for || !message) {
+      return res.status(400).json({
+        status: "fail",
+        message: "sender_id, receiver_id, conversation_for, and message are required"
+      });
     }
 
-    const newChat = new Chat({ ride_id, package_id, sender_id, receiver_id, message });
-    const savedMessage = await newChat.save();
+    let convId = conversation_id;
 
-    res.status(200).json({ status: "success", data: savedMessage });
-  } catch (error) {
-    console.error("Error sending message:", error);
-    res.status(500).json({ status: "fail", message: error.message });
-  }
-};
+    // Agar conversation_id nahi hai, check agar already exist karti hai same sender & receiver + conversation_for
+    if (!convId) {
+      const existingChat = await Chat.findOne({
+        $or: [
+          { sender_id, receiver_id, conversation_for },
+          { sender_id: receiver_id, receiver_id: sender_id, conversation_for }
+        ]
+      }).sort({ createdAt: -1 });
 
-// 📥 Get chat history
-export const getChatHistory = async (req, res) => {
-  try {
-    const { ride_id, package_id } = req.body;
-
-    if (!ride_id && !package_id) {
-      return res.status(400).json({ status: "fail", message: "ride_id or package_id required" });
+      convId = existingChat ? existingChat.conversation_id : undefined;
     }
 
-    const chats = await Chat.find({
-      ride_id: ride_id || null,
-      package_id: package_id || null,
-    })
-      .sort({ createdAt: 1 })
-      .populate("sender_id", "name email")
-      .populate("receiver_id", "name email");
+    // ✅ Create chat
+    const newChat = new Chat({
+      conversation_id: convId,
+      sender_id,
+      receiver_id,
+      conversation_for,
+      message,
+      unread_count: 1
+    });
 
-    res.json({ status: "success", count: chats.length, data: chats });
+    const savedChat = await newChat.save();
+
+    res.status(200).json({
+      status: "success",
+      message: "Message sent successfully",
+      data: savedChat
+    });
   } catch (error) {
-    console.error("Error getting chat history:", error);
-    res.status(500).json({ status: "fail", message: error.message });
+    console.error("Send message error:", error);
+    res.status(500).json({
+      status: "fail",
+      message: "Internal server error",
+      error: error.message
+    });
   }
 };

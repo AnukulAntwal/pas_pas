@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from "uuid";
 import Package from "../models/Package.js"; // 👈 define if exists
 import Ride from "../models/DeliveryService.js"; 
 import User from "../models/User.js";
+import { getNextConversationId } from "../utils/getNextId.js";
 import mongoose from "mongoose";
 
 export const sendMessage = async (req, res) => {
@@ -18,8 +19,10 @@ export const sendMessage = async (req, res) => {
     } = req.body;
 
     // ✅ Generate new conversation_id if not provided
-    const finalConversationId =
-      conversation_id || `${conversation_for}_${uuidv4()}`;
+    let finalConversationId = conversation_id;
+    if (!finalConversationId) {
+    finalConversationId = await getNextConversationId(); // e.g. 101, 102...
+    }
 
     const newMessage = new Chat({
       conversation_id: finalConversationId,

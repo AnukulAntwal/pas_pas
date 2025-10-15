@@ -1,8 +1,9 @@
 import mongoose from "mongoose";
 import moment from "moment";
+// import { Number } from "joi";
 
 const chatSchema = new mongoose.Schema({
-  conversation_id: { type: String },
+  conversation_id: { type: Number },
   conversation_for: { type: String, enum: ["ride", "package"], required: true },
   reference_id: { type: mongoose.Schema.Types.ObjectId, required: true },
   sender_id: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
@@ -11,7 +12,7 @@ const chatSchema = new mongoose.Schema({
   unread_count: { type: Number, default: 0 },
 
   // ✅ New fields
-  is_read: { type: Boolean, default: false }, // message read hua ya nahi
+  is_read: { type: Number, default: 0 }, // message read hua ya nahi
   status: { type: String, enum: ["active", "deleted"], default: "active" }, // delete flag
 }, {
   timestamps: true,

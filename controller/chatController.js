@@ -62,7 +62,7 @@ export const getMessages = async (req, res) => {
       .sort({ createdAt: 1 }); // oldest first
 
     if (!messages.length) {
-      return res.status(200).json({ success: "success", message: "No messages found" });
+      return res.status(200).json({ success: "success", message: "No messages found",data:[] });
     }
 
     // 🔹 Get the first message to identify conversation type & reference

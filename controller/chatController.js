@@ -79,9 +79,11 @@ export const getMessages = async (req, res) => {
 
     return res.status(200).json({
       success: "success",
-      conversation_for: firstMsg.conversation_for,
-      reference_details: refDetails,
-      messages,
+      data:{
+        reference_details: refDetails,
+        messages,
+        conversation_for: firstMsg.conversation_for,
+      }
     });
 
   } catch (error) {

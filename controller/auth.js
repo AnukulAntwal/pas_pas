@@ -54,10 +54,14 @@ export const registerController = async (req, res) => {
         .json({ error: "User already exists with this email" });
     }
 
+    let profileImage = null;
+    if (req.file) {
+      profileImage = req.file.filename; // only store filename
+    }
     // 3. Create new user
     const hashedPass = await bcrypt.hash(password, 10);  
 
-    const newUser = new User({first_name,last_name,phone_number,email,password:hashedPass });
+    const newUser = new User({first_name,last_name,phone_number,email,password:hashedPass,profile_image: profileImage });
 
    const userDetails =  await newUser.save();
 

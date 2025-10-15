@@ -41,6 +41,20 @@ const userSchema = new mongoose.Schema(
     last_login:{
       type: Date
     },
+    profile_image: {
+    type: String,
+    default: null,
+    },
+    is_valid_adhar: {
+      type: Number,
+      enum: [0, 1],
+      default: 0, // ✅ default 0
+    },
+    is_valid_pan: {
+      type: Number,
+      enum: [0, 1],
+      default: 0, // ✅ default 0
+    },
     
   },  
   {
@@ -52,17 +66,17 @@ const userSchema = new mongoose.Schema(
 );
 
 // ✅ pre-save hook to auto increment ID
-userSchema.pre("save", async function (next) {
-  if (this.isNew) {
-    const counter = await Counter.findByIdAndUpdate(
-      { _id: "users" },              // counter for users collection
-      { $inc: { seq: 1 } },
-      { new: true, upsert: true }
-    );
-    this.id = counter.seq;
-  }
-  next();
-});
+// userSchema.pre("save", async function (next) {
+//   if (this.isNew) {
+//     const counter = await Counter.findByIdAndUpdate(
+//       { _id: "users" },              // counter for users collection
+//       { $inc: { seq: 1 } },
+//       { new: true, upsert: true }
+//     );
+//     this.id = counter.seq;
+//   }
+//   next();
+// });
 
 userSchema.path("createdAt").get(function (date) {
   return moment(date).format("YYYY-MM-DD HH:mm:ss");

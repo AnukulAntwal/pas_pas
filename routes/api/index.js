@@ -17,7 +17,4 @@ router.use('/search',verifyCustomToken, deliveryGetRoute);
 router.use('/search/package', verifyCustomToken, packagGetRoute);
 router.use('/chat', verifyCustomToken, chatRoutes);
 
-
-
-
 export default router;

@@ -5,8 +5,8 @@ const router = express.Router();
 
 router.post("/send", sendMessage);
 // router.get("/getChat", getConversations); // ✅ now using req.body instead of params
-router.post("/conversations", getConversationList);
-router.post("/messages", getMessages);
+router.post("/getList", getConversationList);
+router.post("/conversation", getMessages);
 
 
 

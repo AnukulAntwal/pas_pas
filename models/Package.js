@@ -55,6 +55,8 @@ packageSchema.path("createdAt").get(function (date) {
 packageSchema.path("updatedAt").get(function (date) {
   return moment(date).format("YYYY-MM-DD HH:mm:ss");
 });
-
+packageSchema.path("date_time").get(function (date) {
+  return moment(date).format("YYYY-MM-DD HH:mm:ss");
+});
 const Package = mongoose.model("Package", packageSchema);
 export default Package;

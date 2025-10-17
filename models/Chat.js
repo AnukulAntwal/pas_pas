@@ -24,6 +24,8 @@ const chatSchema = new mongoose.Schema({
 chatSchema.path("createdAt").get(function (date) {
   return moment(date).format("YYYY-MM-DD HH:mm:ss");
 });
-
+chatSchema.path("updatedAt").get(function (date) {
+  return moment(date).format("YYYY-MM-DD HH:mm:ss");
+});
 const Chat = mongoose.model("Chat", chatSchema);
 export default Chat;

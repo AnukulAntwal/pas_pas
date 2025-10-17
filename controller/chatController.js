@@ -45,7 +45,8 @@ export const sendMessage = async (req, res) => {
     console.error("Error sending message:", error);
     res.status(500).json({
       status: "fail",
-      error: error.message,
+      message: error.message,
+      data:[]
     });
   }
 };
@@ -55,7 +56,7 @@ export const getMessages = async (req, res) => {
     const { conversation_id } = req.body;
 
     if (!conversation_id) {
-      return res.status(400).json({ success: "fail", message: "conversation_id required" });
+      return res.status(400).json({ success: "fail", message: "conversation_id required",data:[] });
     }
 
     // 🔹 Find all messages of this conversation
@@ -65,7 +66,7 @@ export const getMessages = async (req, res) => {
       .sort({ createdAt: 1 }); // oldest first
 
     if (!messages.length) {
-      return res.status(200).json({ success: "success", message: "No messages found",data:[] });
+      return res.status(200).json({ status: "fail", message: "No messages found",data:[] });
     }
 
     // 🔹 Get the first message to identify conversation type & reference
@@ -81,7 +82,8 @@ export const getMessages = async (req, res) => {
     }
 
     return res.status(200).json({
-      success: "success",
+      status: "success",
+      message:"Message fetched successfully",
       data:{
         reference_details: refDetails,
         messages,
@@ -91,32 +93,130 @@ export const getMessages = async (req, res) => {
 
   } catch (error) {
     console.error("❌ getMessages error:", error);
-    return res.status(500).json({ success: 'fail', message: "Internal server error" });
+    return res.status(500).json({ status: 'fail', message: "Internal server error", data:[] });
   }
 };
 
 
 // Get conversation list for logged-in user
+// export const getConversationList = async (req, res) => {
+//   try {
+//     const loggedUserId = req.body.user_id; // 🔹 Or req.user.id if using auth middleware
+//     if (!loggedUserId) {
+//       return res.status(400).json({ status: "fail", message: "User ID required", data:[] });
+//     }
+
+//     const loggedUserObjectId = new mongoose.Types.ObjectId(loggedUserId);
+
+//     // 🔹 Step 1: Aggregate to get last message per conversation
+//     const conversations = await Chat.aggregate([
+//       {
+//         $match: {
+//           $or: [
+//             { sender_id: loggedUserObjectId },
+//             { receiver_id: loggedUserObjectId }
+//           ]
+//         }
+//       },
+//       { $sort: { createdAt: -1 } },
+//       {
+//         $group: {
+//           _id: "$conversation_id",
+//           last_message: { $first: "$message" },
+//           conversation_for: { $first: "$conversation_for" },
+//           reference_id: { $first: "$reference_id" },
+//           sender_id: { $first: "$sender_id" },
+//           receiver_id: { $first: "$receiver_id" },
+//           unread_count: {
+//             $sum: {
+//               $cond: [
+//                 {
+//                   $and: [
+//                     { $eq: ["$receiver_id", loggedUserObjectId] },
+//                     { $gt: ["$unread_count", 0] }
+//                   ]
+//                 },
+//                 "$unread_count",
+//                 0
+//               ]
+//             }
+//           },
+//           updatedAt: { $first: "$createdAt" }
+//         }
+//       },
+//       { $sort: { updatedAt: -1 } }
+//     ]);
+
+//     // 🔹 Step 2: Populate chat_partner & reference details
+//     const result = await Promise.all(
+//       conversations.map(async (conv) => {
+//         const chatPartnerId =
+//           conv.sender_id.toString() === loggedUserId
+//             ? conv.receiver_id
+//             : conv.sender_id;
+
+//         const chat_partner = await User.findById(chatPartnerId).select(
+//           "first_name last_name"
+//         );
+//         const user_name = `${chat_partner.first_name} ${chat_partner.last_name}`;
+
+//         let reference_details = null;
+//         if (conv.conversation_for === "package") {
+//           reference_details = await Package.findById(conv.reference_id).select(
+//             "pickup_location drop_location date_time price package_type package_size"
+//           );
+//         } else if (conv.conversation_for === "ride") {
+//           reference_details = await Ride.findById(conv.reference_id).select(
+//             "start_location end_location date_time"
+//           );
+//         }
+
+//         return {
+//           conversation_id: conv._id,
+//           conversation_for: conv.conversation_for,
+//           user_name,
+//           last_message: conv.last_message,
+//           unread_count: conv.unread_count,
+//           created_time: conv.created_time,
+//           reference_details,
+//         };
+//       })
+//     );
+
+//     res.status(200).json({
+//       status: "success",
+//       message:"Data fetched successfully",
+//       data: {result,count: result.length},
+//     });
+//   } catch (error) {
+//     console.error("Error fetching conversation list:", error);
+//     res.status(500).json({ status: "fail", message: error.message, data:[] });
+//   }
+// };
 export const getConversationList = async (req, res) => {
   try {
-    const loggedUserId = req.body.user_id; // 🔹 Or req.user.id if using auth middleware
+    const loggedUserId = req.body.user_id; // Or req.user.id if using auth middleware
     if (!loggedUserId) {
-      return res.status(400).json({ status: "fail", message: "User ID required" });
+      return res.status(400).json({
+        status: "fail",
+        message: "User ID required",
+        data: [],
+      });
     }
 
     const loggedUserObjectId = new mongoose.Types.ObjectId(loggedUserId);
 
-    // 🔹 Step 1: Aggregate to get last message per conversation
+    // 🔹 Step 1: Aggregate conversations
     const conversations = await Chat.aggregate([
       {
         $match: {
           $or: [
             { sender_id: loggedUserObjectId },
-            { receiver_id: loggedUserObjectId }
-          ]
-        }
+            { receiver_id: loggedUserObjectId },
+          ],
+        },
       },
-      { $sort: { createdAt: -1 } },
+      { $sort: { createdAt: -1 } }, // sort by message creation
       {
         $group: {
           _id: "$conversation_id",
@@ -125,27 +225,28 @@ export const getConversationList = async (req, res) => {
           reference_id: { $first: "$reference_id" },
           sender_id: { $first: "$sender_id" },
           receiver_id: { $first: "$receiver_id" },
+          updated_time: { $first: "$createdAt" }, // 🕒 latest message time
+          created_time: { $last: "$createdAt" }, // 🕓 oldest message time
           unread_count: {
             $sum: {
               $cond: [
                 {
                   $and: [
                     { $eq: ["$receiver_id", loggedUserObjectId] },
-                    { $gt: ["$unread_count", 0] }
-                  ]
+                    { $gt: ["$unread_count", 0] },
+                  ],
                 },
                 "$unread_count",
-                0
-              ]
-            }
+                0,
+              ],
+            },
           },
-          updatedAt: { $first: "$createdAt" }
-        }
+        },
       },
-      { $sort: { updatedAt: -1 } }
+      { $sort: { updated_time: -1 } }, // sort by most recent activity
     ]);
 
-    // 🔹 Step 2: Populate chat_partner & reference details
+    // 🔹 Step 2: Populate user and reference details
     const result = await Promise.all(
       conversations.map(async (conv) => {
         const chatPartnerId =
@@ -154,8 +255,12 @@ export const getConversationList = async (req, res) => {
             : conv.sender_id;
 
         const chat_partner = await User.findById(chatPartnerId).select(
-          "first_name last_name phone_number"
+          "first_name last_name"
         );
+
+        const user_name = chat_partner
+          ? `${chat_partner.first_name} ${chat_partner.last_name}`
+          : "Unknown User";
 
         let reference_details = null;
         if (conv.conversation_for === "package") {
@@ -171,9 +276,11 @@ export const getConversationList = async (req, res) => {
         return {
           conversation_id: conv._id,
           conversation_for: conv.conversation_for,
-          chat_partner,
+          user_name,
           last_message: conv.last_message,
           unread_count: conv.unread_count,
+          created_time: conv.created_time, // ✅ oldest message
+          updated_time: conv.updated_time, // ✅ latest message
           reference_details,
         };
       })
@@ -181,14 +288,20 @@ export const getConversationList = async (req, res) => {
 
     res.status(200).json({
       status: "success",
-      count: result.length,
-      data: result,
+      message: "Data fetched successfully",
+      data: { result, count: result.length },
     });
   } catch (error) {
     console.error("Error fetching conversation list:", error);
-    res.status(500).json({ status: "fail", message: error.message });
+    res.status(500).json({
+      status: "fail",
+      message: error.message,
+      data: [],
+    });
   }
 };
+
+
 
 
 export const markMessagesAsRead = async (req, res) => {
@@ -196,7 +309,7 @@ export const markMessagesAsRead = async (req, res) => {
     const { conversation_id, receiver_id } = req.body;
 
     if (!conversation_id || !receiver_id) {
-      return res.status(400).json({ status: "fail", message: "conversation_id and receiver_id required" });
+      return res.status(400).json({ status: "fail", message: "conversation_id and receiver_id required",data:[] });
     }
 
     const result = await Chat.updateMany(
@@ -207,7 +320,7 @@ export const markMessagesAsRead = async (req, res) => {
     res.status(200).json({
       status: "success",
       message: "Messages marked as read",
-      updated_count: result.modifiedCount,
+      data: result.modifiedCount,
     });
   } catch (error) {
     console.error("Error marking messages as read:", error);
@@ -221,17 +334,17 @@ export const deleteMessage = async (req, res) => {
     const { message_id, user_id } = req.body;
 
     if (!message_id || !user_id) {
-      return res.status(400).json({ status: "fail", message: "message_id and user_id required" });
+      return res.status(400).json({ status: "fail", message: "message_id and user_id required",data:[] });
     }
 
     const message = await Chat.findById(message_id);
     if (!message) {
-      return res.status(404).json({ status: "fail", message: "Message not found" });
+      return res.status(404).json({ status: "fail", message: "Message not found" , data:[]});
     }
 
     // Optional: check if user is sender
     if (message.sender_id.toString() !== user_id.toString()) {
-      return res.status(403).json({ status: "fail", message: "You can only delete your own messages" });
+      return res.status(403).json({ status: "fail", message: "You can only delete your own messages",data:[] });
     }
 
     message.status = "deleted";
@@ -244,6 +357,6 @@ export const deleteMessage = async (req, res) => {
     });
   } catch (error) {
     console.error("Error deleting message:", error);
-    res.status(500).json({ status: "fail", message: error.message });
+    res.status(500).json({ status: "fail", message: error.message, data:[] });
   }
 };

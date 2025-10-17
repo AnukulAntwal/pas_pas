@@ -91,7 +91,7 @@ export const getMessages = async (req, res) => {
 
   } catch (error) {
     console.error("❌ getMessages error:", error);
-    return res.status(500).json({ success: false, message: "Internal server error" });
+    return res.status(500).json({ success: 'fail', message: "Internal server error" });
   }
 };
 
@@ -235,11 +235,12 @@ export const deleteMessage = async (req, res) => {
     }
 
     message.status = "deleted";
-    await message.save();
+   const deleteMsg = await message.save();
 
     res.status(200).json({
       status: "success",
       message: "Message deleted successfully",
+      data:deleteMsg
     });
   } catch (error) {
     console.error("Error deleting message:", error);

@@ -55,49 +55,96 @@ export const sendMessage = async (req, res) => {
 
 export const getMessages = async (req, res) => {
   try {
-    const { conversation_id } = req.body;
+    const { conversation_id, user_id } = req.body; // 🧩 Add current user_id to identify direction
 
     if (!conversation_id) {
-      return res.status(400).json({ success: "fail", message: "conversation_id required",data:[] });
+      return res
+        .status(400)
+        .json({ success: "fail", message: "conversation_id required", data: [] });
     }
 
     // 🔹 Find all messages of this conversation
     const messages = await Chat.find({ conversation_id, status: "active" })
-      .populate("sender_id", "first_name last_name email phone_number")  // sender info
-      .populate("receiver_id", "first_name last_name email phone_number") // receiver info
-      .sort({ createdAt: 1 }); // oldest first
+      .populate("sender_id", "first_name last_name email phone_number")
+      .populate("receiver_id", "first_name last_name email phone_number")
+      .sort({ updatedAt: -1 }); // 🕓 latest message first
 
     if (!messages.length) {
-      return res.status(200).json({ status: "fail", message: "No messages found",data:[] });
+      return res
+        .status(200)
+        .json({ status: "fail", message: "No messages found", data: [] });
     }
 
-    // 🔹 Get the first message to identify conversation type & reference
+    // 🔹 Get the first message (for reference info)
     const firstMsg = messages[0];
-    let refDetails = null;
 
+    // 🔹 Reference Details
+    let refDetails = null;
+    let reference_type = "";
     if (firstMsg.conversation_for === "package") {
-      refDetails = await Package.findById(firstMsg.reference_id)
-        .select("pickup_location drop_location package_type price");
+      refDetails = await Package.findById(firstMsg.reference_id).select(
+        "pickup_location drop_location package_type price"
+      );
+      reference_type = "package";
     } else if (firstMsg.conversation_for === "ride") {
-      refDetails = await Ride.findById(firstMsg.reference_id)
-        .select("start_location end_location date_time transport_type");
+      refDetails = await Ride.findById(firstMsg.reference_id).select(
+        "start_location end_location date_time transport_type"
+      );
+      reference_type = "Ride";
     }
 
+    // 🔹 Contact Details (determine chat partner)
+    const chatPartner =
+      String(messages[0].sender_id._id) === String(user_id)
+        ? messages[0].receiver_id
+        : messages[0].sender_id;
+
+    const contact_details = {
+      user_name: `${chatPartner.first_name} ${chatPartner.last_name}`,
+      contact_number: chatPartner.phone_number,
+      reference_id: firstMsg.reference_id || "",
+    };
+
+    // 🔹 Conversation Log
+    const conversation_log = messages.map((msg) => ({
+      conversation: msg.message,
+      conversation_date: moment(msg.updatedAt).format("YYYY-MM-DD HH:mm:ss"),
+      conversation_id: msg.conversation_id,
+      direction:
+        String(msg.sender_id._id) === String(user_id) ? "outbound" : "inbound",
+      is_read: msg.is_read ? 1 : 0,
+    }));
+
+    // 🔹 Reference details formatted
+    const reference_details = {
+      _id: refDetails?._id || "",
+      reference_id: firstMsg.reference_id || "",
+      reference_type,
+      pickup_location:
+        refDetails?.pickup_location || refDetails?.start_location || "",
+      drop_location:
+        refDetails?.drop_location || refDetails?.end_location || "",
+      price: refDetails?.price || "",
+    };
+
+    // ✅ Final response
     return res.status(200).json({
       status: "success",
-      message:"Message fetched successfully",
-      data:{
-        reference_details: refDetails,
-        messages,
-        conversation_for: firstMsg.conversation_for,
-      }
+      message: "Data fetched successfully",
+      data: {
+        contact_details,
+        reference_details,
+        conversation_log,
+      },
     });
-
   } catch (error) {
     console.error("❌ getMessages error:", error);
-    return res.status(500).json({ status: 'fail', message: "Internal server error", data:[] });
+    return res
+      .status(500)
+      .json({ status: "fail", message: "Internal server error", data: [] });
   }
 };
+
 
 
 // Get conversation list for logged-in user

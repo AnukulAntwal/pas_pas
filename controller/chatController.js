@@ -7,6 +7,7 @@ import User from "../models/User.js";
 import { getNextConversationId } from "../utils/getNextId.js";
 import mongoose from "mongoose";
 import moment from "moment";
+import Notification from "../models/Notification.js";
 
 
 export const sendMessage = async (req, res) => {
@@ -37,6 +38,15 @@ export const sendMessage = async (req, res) => {
     });
 
     await newMessage.save();
+      // ✅ Create new notification
+    const newNotification = await Notification.create({
+      sender_id,
+      receiver_id,
+      conversation_id,
+      reference_id,
+      message_text: message,
+      type: "message",
+    });
 
     res.status(200).json({
       status: "success",
@@ -321,26 +331,31 @@ export const getConversationList = async (req, res) => {
             "start_location end_location date_time"
           );
         }
+
         const created_time = moment(conv.created_time).format("YYYY-MM-DD HH:mm:ss");
         const updated_time = moment(conv.updated_time).format("YYYY-MM-DD HH:mm:ss");
+
         return {
           conversation_id: conv._id,
           conversation_for: conv.conversation_for,
           user_name,
           last_message: conv.last_message,
           unread_count: conv.unread_count,
-          created_time, // ✅ oldest message
-          updated_time, // ✅ latest message
+          created_time,
+          updated_time,
           reference_details,
         };
       })
     );
 
+    // ✅ Final Response (without `result` key)
     res.status(200).json({
       status: "success",
       message: "Data fetched successfully",
-      data: { result, count: result.length },
+      data: result,
+      count: result.length,
     });
+
   } catch (error) {
     console.error("Error fetching conversation list:", error);
     res.status(500).json({
@@ -350,6 +365,7 @@ export const getConversationList = async (req, res) => {
     });
   }
 };
+
 
 
 

@@ -12,6 +12,14 @@ const chatSchema = new mongoose.Schema({
   unread_count: { type: Number, default: 0 },
 
   // ✅ New fields
+imageUrl: {
+    type: String,
+    default: null, // for image message (if any)
+},
+attachment: {
+    type: String,
+    default: null, // for file/pdf/audio etc.
+},
   is_read: { type: Number, default: 0 }, // message read hua ya nahi
   status: { type: String, enum: ["active", "deleted"], default: "active" }, // delete flag
 }, {

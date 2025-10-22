@@ -179,7 +179,39 @@ export const getServices = async (req, res) => {
     res.status(500).json({
       status: 'fail',
       message: "Internal server error",
-      error: error.message,
+      data:[],
+    });
+  }
+};
+
+export const deleteDeliveryService = async (req, res) => {
+  try {
+    const { service_id } = req.query; // id aayegi from URL params
+
+    // Check if service exists
+    const service = await DeliveryService.findById(service_id);
+    if (!service) {
+      return res.status(404).json({
+        status: 'fail',
+        message: 'Service not found',
+        data:[]
+      });
+    }
+
+    // Delete the service
+  const deletedService =   await DeliveryService.findByIdAndDelete(service_id);
+
+    return res.status(200).json({
+      status: 'success',
+      message: 'Service deleted successfully',
+      data:deletedService
+    });
+  } catch (error) {
+    console.error('Error deleting service:', error);
+    res.status(500).json({
+      status: 'fail',
+      message: 'Internal Server Error',
+      data:[],
     });
   }
 };

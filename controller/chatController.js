@@ -65,7 +65,7 @@ export const sendMessage = async (req, res) => {
 
 export const getMessages = async (req, res) => {
   try {
-    const { conversation_id, user_id } = req.body; // 🧩 Add current user_id to identify direction
+    const { conversation_id, user_id } = req.query; // 🧩 Add current user_id to identify direction
 
     if (!conversation_id) {
       return res
@@ -151,7 +151,7 @@ export const getMessages = async (req, res) => {
     console.error("❌ getMessages error:", error);
     return res
       .status(500)
-      .json({ status: "fail", message: "Internal server error", data: [] });
+      .json({ status: "fail", message: "Internal server error",error:error.message, data: [] });
   }
 };
 
@@ -365,10 +365,6 @@ export const getConversationList = async (req, res) => {
     });
   }
 };
-
-
-
-
 
 export const markMessagesAsRead = async (req, res) => {
   try {

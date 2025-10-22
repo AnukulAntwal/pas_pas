@@ -61,13 +61,13 @@ export const getNotifications = async (req, res) => {
     // Format for response
     const formatted = notifications.map((notif) => ({
     notification_id: notif._id,
-    message: notif.message_text, // ✅ yaha add kiya
+    message: notif.message_text, 
     sender_name: notif.sender_id
         ? `${notif.sender_id.first_name} ${notif.sender_id.last_name}`
         : "Unknown",
     sender_phone: notif.sender_id?.phone_number || "",
     is_read: notif.is_read,
-    created_time: notif.createdAt, // moment formatted
+    created_time: notif.createdAt,
     }));
 
 

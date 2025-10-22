@@ -48,7 +48,7 @@ export const savePackage = async (req, res) => {
     });
   } catch (error) {
     console.error("Error saving package:", error);
-    res.status(500).json({ status: "fail", error: error.message });
+    res.status(500).json({ status: "fail", message: error.message, data:[] });
   }
 };
 
@@ -63,7 +63,8 @@ export const getPackages = async (req, res) => {
     if (!pickup_lat || !pickup_long || !drop_lat || !drop_long || !date_time) {
       return res.status(400).json({
         status: 'fail',
-        message: "Provide pickup_lat, pickup_long, drop_lat, drop_long, and date_time"
+        message: "Provide pickup_lat, pickup_long, drop_lat, drop_long, and date_time",
+        data:[]
       });
     }
 
@@ -109,7 +110,50 @@ export const getPackages = async (req, res) => {
 
   } catch (error) {
     console.error("Error fetching packages:", error);
-    res.status(500).json({ status: 'fail', error: error.message });
+    res.status(500).json({ status: 'fail', message: error.message,data:[] });
   }
 };
 
+
+export const deletePackage = async (req, res) => {
+  try {
+    // 🔹 Get package_id from query (example: ?package_id=abc123)
+    const { package_id } = req.query;
+
+    if (!package_id) {
+      return res.status(400).json({
+        status: "fail",
+        message: "package_id is required",
+        data:[]
+      });
+    }
+
+    // 🔹 Check if package exists
+    const packageData = await Package.findById(package_id);
+
+    if (!packageData) {
+      return res.status(404).json({
+        status: "fail",
+        message: "Package not found",
+        data:[]
+      });
+    }
+
+    // 🔹 Delete the package
+    const deletePackage =  await Package.findByIdAndDelete(package_id);
+
+    return res.status(200).json({
+      status: "success",
+      message: "Package deleted successfully",
+      data:deletePackage
+    });
+  } catch (error) {
+    console.error("❌ Error deleting package:", error);
+    return res.status(500).json({
+      status: "fail",
+      message: "Internal Server Error",
+      error: error.message,
+      data:[]
+    });
+  }
+};

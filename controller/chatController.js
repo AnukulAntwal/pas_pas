@@ -254,7 +254,7 @@ export const getMessages = async (req, res) => {
 // };
 export const getConversationList = async (req, res) => {
   try {
-    const loggedUserId = req.body.user_id; // Or req.user.id if using auth middleware
+    const loggedUserId = req.query.user_id; // Or req.user.id if using auth middleware
     if (!loggedUserId) {
       return res.status(400).json({
         status: "fail",

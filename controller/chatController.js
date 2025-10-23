@@ -377,7 +377,7 @@ export const markMessagesAsRead = async (req, res) => {
 
     const result = await Chat.updateMany(
       { conversation_id, receiver_id, is_read: false, status: "active" },
-      { $set: { is_read: true, unread_count: 0 } }
+      { $set: { is_read: 1, unread_count: 0 } }
     );
 
     res.status(200).json({
@@ -400,7 +400,7 @@ export const deleteMessage = async (req, res) => {
       return res.status(400).json({ status: "fail", message: "message_id and user_id required",data:[] });
     }
 
-    const message = await Chat.findById(message_id);
+    const message = await Chat.find(message_id);
     if (!message) {
       return res.status(404).json({ status: "fail", message: "Message not found" , data:[]});
     }

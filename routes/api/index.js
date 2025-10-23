@@ -9,6 +9,7 @@ import deliveryDeleteRoute from '../delivery-service/index.js';
 import verifyCustomToken from "../../middlewares/authAdmin.js";
 import chatRoutes from '../chats/index.js';
 import notificationRoutes from '../notification/index.js';   
+import bookingRoute from '../booking/index.js';   
 
 const router = express.Router();
 
@@ -22,6 +23,8 @@ router.use('/search/package', verifyCustomToken, packagGetRoute);
 router.use('/package', verifyCustomToken, packageDeleteRoute);
 router.use('/chat', verifyCustomToken, chatRoutes);
 router.use('/notification', verifyCustomToken, notificationRoutes);
+router.use('/booking', verifyCustomToken, bookingRoute);
+
 
 
 export default router;

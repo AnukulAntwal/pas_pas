@@ -110,6 +110,7 @@ export const getMessages = async (req, res) => {
         : messages[0].sender_id;
 
     const contact_details = {
+      id: chatPartner._id,
       user_name: `${chatPartner.first_name} ${chatPartner.last_name}`,
       contact_number: chatPartner.phone_number,
       reference_id: firstMsg.reference_id || "",

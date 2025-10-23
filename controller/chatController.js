@@ -42,7 +42,7 @@ export const sendMessage = async (req, res) => {
     const newNotification = await Notification.create({
       sender_id,
       receiver_id,
-      conversation_id,
+      conversation_id:finalConversationId,
       reference_id,
       message_text: message,
       type: "message",

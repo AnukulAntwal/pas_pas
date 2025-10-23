@@ -1,5 +1,6 @@
 import User from "../models/User.js";
 import { loginValidate, registerValidate } from "../validations/userValidate.js";
+import crypto from "crypto";
 import bcrypt from "bcryptjs";
 
 // Login api function
@@ -73,5 +74,75 @@ export const registerController = async (req, res) => {
     });
   } catch (e) {
     return res.status(500).json({ status: 'fail', error: e.message });
+  }
+};
+
+
+export const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ status: "fail", message: "Email is required", data:[] });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ status: "fail", message: "User not found", data:[] });
+    }
+
+    // Generate random token
+    const resetToken = crypto.randomBytes(20).toString("hex");
+
+    // Save hashed token + expiry (10 mins)
+    user.resetPasswordToken = crypto.createHash("sha256").update(resetToken).digest("hex");
+    user.resetPasswordExpire = Date.now() + 10 * 60 * 1000;
+
+   const userDetails =  await user.save();
+
+    return res.status(200).json({
+      status: "success",
+      message: "Password reset token generated successfully",
+      token: resetToken, // 👈 Flutter will use this
+      data:userDetails
+    });
+  } catch (error) {
+    return res.status(500).json({ status: "fail", message: error.message,data:[] });
+  }
+};
+
+export const resetPassword = async (req, res) => {
+  try {
+    const { token, newPassword } = req.query;
+
+    if (!token || !newPassword) {
+      return res.status(400).json({ status: "fail", message: "Token and new password are required",data:[]});
+    }
+
+    // Hash token to match DB
+    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+
+    const user = await User.findOne({
+      resetPasswordToken: hashedToken,
+      resetPasswordExpire: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      return res.status(400).json({ status: "fail", message: "Invalid or expired token", data:[]});
+    }
+
+    // Update password
+    user.password = await bcrypt.hash(newPassword, 10);
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpire = undefined;
+   const userDetails = await user.save();
+
+    return res.status(200).json({
+      status: "success",
+      message: "Password has been reset successfully",
+      data:userDetails
+    });
+  } catch (error) {
+    return res.status(500).json({ status: "fail", message: error.message });
   }
 };

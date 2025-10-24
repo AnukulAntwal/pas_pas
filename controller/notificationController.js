@@ -50,7 +50,7 @@ export const getNotifications = async (req, res) => {
       });
     }
        //  Step 1: If is_read = 1 → mark all unread notifications as read
-    if (is_read && Number(is_read) === 1) {
+    if (is_read == 1) {
       await Notification.updateMany(
         { receiver_id: user_id, is_read: 0 },
         { $set: { is_read: 1 } }

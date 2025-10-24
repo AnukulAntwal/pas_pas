@@ -57,10 +57,14 @@ export const getNotifications = async (req, res) => {
       );
     }
 
+    const today = new Date(); // current date
+    const lastWeek = new Date();
+    lastWeek.setDate(today.getDate() - 7); // 7 days ago
+
     const notifications = await Notification.find({
       receiver_id: user_id,
-      // is_read: 0,
       status: "active",
+      createdAt: { $gte: lastWeek, $lte: today }, // filter by date
     })
       .populate("sender_id", "first_name last_name phone_number")
       .sort({ createdAt: -1 });

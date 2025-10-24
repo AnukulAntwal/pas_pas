@@ -5,11 +5,11 @@ import DeliveryService from "../models/DeliveryService.js";
 
 export const bookOrCancel = async (req, res) => {
   try {
-    const { reference_id, user_id, type, action } = req.body;
+    const { reference_id, user_id, type, booking_type } = req.body;
     // action => "book" | "cancel"
     // type => "package" | "service"
 
-    if (!reference_id || !user_id || !type || !action) {
+    if (!reference_id || !user_id || !type || !booking_type) {
       return res.status(400).json({
         status: "fail",
         message: "Missing required fields (reference_id, user_id, type, action)",
@@ -40,7 +40,7 @@ export const bookOrCancel = async (req, res) => {
     }
 
     // Booking logic
-    if (action === "book") {
+    if (booking_type === "book") {
       if (record.is_available === "acquired") {
         return res.status(400).json({
           status: "fail",
@@ -54,7 +54,7 @@ export const bookOrCancel = async (req, res) => {
       record.booked_by = user_id;
     }
 
-    if (action === "cancel") {
+    if (booking_type === "cancel") {
       if (record.booked_by?.toString() !== user_id.toString()) {
         return res.status(403).json({
           status: "fail",
@@ -88,7 +88,7 @@ export const bookOrCancel = async (req, res) => {
     return res.status(200).json({
       status: "success",
       message:
-        action === "book"
+        booking_type === "book"
           ? `${type} booked successfully`
           : `${type} booking canceled successfully`,
       data: {
@@ -103,7 +103,7 @@ export const bookOrCancel = async (req, res) => {
   } catch (error) {
     console.error("Booking error:", error);
     return res.status(500).json({
-      status: "error",
+      status: "fail",
       message: error.message,
       data:[]
     });

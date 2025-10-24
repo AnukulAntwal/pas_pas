@@ -59,7 +59,7 @@ export const getNotifications = async (req, res) => {
 
     const notifications = await Notification.find({
       receiver_id: user_id,
-      is_read: 0,
+      // is_read: 0,
       status: "active",
     })
       .populate("sender_id", "first_name last_name phone_number")

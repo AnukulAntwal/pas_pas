@@ -253,9 +253,12 @@ export const getMessages = async (req, res) => {
 //     res.status(500).json({ status: "fail", message: error.message, data:[] });
 //   }
 // };
+
+
 export const getConversationList = async (req, res) => {
   try {
-    const loggedUserId = req.query.user_id; // Or req.user.id if using auth middleware
+    const { user_id: loggedUserId, is_read } = req.query;
+
     if (!loggedUserId) {
       return res.status(400).json({
         status: "fail",
@@ -266,7 +269,18 @@ export const getConversationList = async (req, res) => {
 
     const loggedUserObjectId = new mongoose.Types.ObjectId(loggedUserId);
 
-    // 🔹 Step 1: Aggregate conversations
+    // ✅ Step 1: If is_read=1 → mark all unread messages as read for this user
+    if (parseInt(is_read) === 1) {
+      await Chat.updateMany(
+        {
+          receiver_id: loggedUserObjectId,
+          is_read: 0,
+        },
+        { $set: { is_read: 1 } }
+      );
+    }
+
+    // 🔹 Step 2: Aggregate conversations
     const conversations = await Chat.aggregate([
       {
         $match: {
@@ -276,7 +290,7 @@ export const getConversationList = async (req, res) => {
           ],
         },
       },
-      { $sort: { createdAt: -1 } }, // sort by message creation
+      { $sort: { createdAt: -1 } },
       {
         $group: {
           _id: "$conversation_id",
@@ -285,28 +299,29 @@ export const getConversationList = async (req, res) => {
           reference_id: { $first: "$reference_id" },
           sender_id: { $first: "$sender_id" },
           receiver_id: { $first: "$receiver_id" },
-          updated_time: { $first: "$createdAt" }, // 🕒 latest message time
-          created_time: { $last: "$createdAt" }, // 🕓 oldest message time
+          is_read: { $first: "$is_read" },
+          updated_time: { $first: "$createdAt" },
+          created_time: { $last: "$createdAt" },
           unread_count: {
             $sum: {
               $cond: [
                 {
                   $and: [
                     { $eq: ["$receiver_id", loggedUserObjectId] },
-                    { $gt: ["$unread_count", 0] },
+                    { $eq: ["$is_read", 0] },
                   ],
                 },
-                "$unread_count",
+                1,
                 0,
               ],
             },
           },
         },
       },
-      { $sort: { updated_time: -1 } }, // sort by most recent activity
+      { $sort: { updated_time: -1 } },
     ]);
 
-    // 🔹 Step 2: Populate user and reference details
+    // 🔹 Step 3: Populate user & reference details
     const result = await Promise.all(
       conversations.map(async (conv) => {
         const chatPartnerId =
@@ -342,6 +357,7 @@ export const getConversationList = async (req, res) => {
           user_name,
           last_message: conv.last_message,
           unread_count: conv.unread_count,
+          is_read: conv.is_read,
           created_time,
           updated_time,
           reference_details,
@@ -349,14 +365,13 @@ export const getConversationList = async (req, res) => {
       })
     );
 
-    // ✅ Final Response (without `result` key)
+    // ✅ Final Response
     res.status(200).json({
       status: "success",
-      message: "Data fetched successfully",
+      message: "Conversations fetched successfully",
       data: result,
       count: result.length,
     });
-
   } catch (error) {
     console.error("Error fetching conversation list:", error);
     res.status(500).json({
@@ -366,6 +381,7 @@ export const getConversationList = async (req, res) => {
     });
   }
 };
+
 
 export const markMessagesAsRead = async (req, res) => {
   try {

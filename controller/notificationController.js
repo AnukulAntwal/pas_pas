@@ -41,13 +41,20 @@ export const sendMessageNotification = async (req, res) => {
 
 export const getNotifications = async (req, res) => {
   try {
-    const { user_id } = req.query;
+    const { user_id,is_read } = req.query;
     if (!user_id) {
       return res.status(400).json({
         status: "fail",
         message: "User ID is required",
         data: [],
       });
+    }
+       //  Step 1: If is_read = 1 → mark all unread notifications as read
+    if (is_read && Number(is_read) === 1) {
+      await Notification.updateMany(
+        { receiver_id: user_id, is_read: 0 },
+        { $set: { is_read: 1 } }
+      );
     }
 
     const notifications = await Notification.find({

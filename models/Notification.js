@@ -9,7 +9,7 @@ const notificationSchema = new mongoose.Schema(
     message_text: { type: String, default: "" },
     conversation_id: { type: Number, required: true },
     reference_id: { type: mongoose.Schema.Types.ObjectId },
-    is_read: { type: Boolean, default: false },
+    is_read: { type: Number, default: 0 },
     status: { type: String, enum: ["active", "deleted"], default: "active" },
   },
   { timestamps: true, toJSON: { getters: true }, toObject: { getters: true } }

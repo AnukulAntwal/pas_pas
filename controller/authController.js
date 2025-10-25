@@ -1,4 +1,5 @@
-import { date } from "joi";
+import pkg from 'joi';
+const { date, string, object } = pkg;
 import OTP, { generateOTP } from "../models/OTP.js";
 import User from "../models/User.js";
 import { sendOTPEmail } from "../services/emailService.js";

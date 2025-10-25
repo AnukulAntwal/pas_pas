@@ -1,4 +1,4 @@
-import pkg from 'joi';
+import pkg from "joi";
 const { date, string, object } = pkg;
 import OTP, { generateOTP } from "../models/OTP.js";
 import User from "../models/User.js";
@@ -12,10 +12,10 @@ export const requestPasswordReset = async (req, res) => {
     // Check if user exists
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(404).json({ 
-        success: "fail", 
-        message: 'No account found with this email',
-        data:[]
+      return res.status(404).json({
+        success: "fail",
+        message: "No account found with this email",
+        data: [],
       });
     }
 
@@ -28,7 +28,7 @@ export const requestPasswordReset = async (req, res) => {
     // Save new OTP to database
     await OTP.create({
       email,
-      otp
+      otp,
     });
 
     // Send OTP via email
@@ -36,17 +36,16 @@ export const requestPasswordReset = async (req, res) => {
 
     res.json({
       success: "success",
-      message: 'OTP sent to your email',
+      message: "OTP sent to your email",
       email,
-      data:email
+      data: email,
     });
-
   } catch (error) {
-    console.error('Request password reset error:', error);
+    console.error("Request password reset error:", error);
     res.status(500).json({
       success: "fail",
-      message: 'Failed to send OTP. Please try again.',
-      data:[]
+      message: "Failed to send OTP. Please try again.",
+      data: [],
     });
   }
 };
@@ -57,34 +56,33 @@ export const verifyOTP = async (req, res) => {
     const { email, otp } = req.body;
 
     // Find the OTP in database
-    const otpRecord = await OTP.findOne({ 
-      email, 
+    const otpRecord = await OTP.findOne({
+      email,
       otp,
-      isUsed: false 
+      isUsed: false,
     });
 
     if (!otpRecord) {
       return res.status(400).json({
         success: "fail",
-        message: 'Invalid or expired OTP',
-        data:[]
+        message: "Invalid or expired OTP",
+        data: [],
       });
     }
 
     // OTP is valid
     res.json({
       success: "success",
-      message: 'OTP verified successfully',
+      message: "OTP verified successfully",
       email,
-      data:email
+      data: email,
     });
-
   } catch (error) {
-    console.error('Verify OTP error:', error);
+    console.error("Verify OTP error:", error);
     res.status(500).json({
       success: "fail",
-      message: 'Failed to verify OTP',
-      data:[]
+      message: "Failed to verify OTP",
+      data: [],
     });
   }
 };
@@ -95,17 +93,17 @@ export const resetPassword = async (req, res) => {
     const { email, otp, newPassword } = req.body;
 
     // Verify OTP again
-    const otpRecord = await OTP.findOne({ 
-      email, 
+    const otpRecord = await OTP.findOne({
+      email,
       otp,
-      isUsed: false 
+      isUsed: false,
     });
 
     if (!otpRecord) {
       return res.status(400).json({
         success: "fail",
-        message: 'Invalid or expired OTP',
-        data:[]
+        message: "Invalid or expired OTP",
+        data: [],
       });
     }
 
@@ -114,14 +112,14 @@ export const resetPassword = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: "fail",
-        message: 'User not found',
-        data:[]
+        message: "User not found",
+        data: [],
       });
     }
 
     // Update password
-    const hashedPass = await bcrypt.hash(newPassword, 10)
-    user.password = hashedPass ;
+    const hashedPass = await bcrypt.hash(newPassword, 10);
+    user.password = hashedPass;
     await user.save();
 
     // Mark OTP as used and delete it
@@ -129,16 +127,15 @@ export const resetPassword = async (req, res) => {
 
     res.json({
       success: "success",
-      message: 'Password reset successfully',
-      data:user
+      message: "Password reset successfully",
+      data: user,
     });
-
   } catch (error) {
-    console.error('Reset password error:', error);
+    console.error("Reset password error:", error);
     res.status(500).json({
       success: "fail",
-      message: 'Failed to reset password',
-      data:[]
+      message: "Failed to reset password",
+      data: [],
     });
   }
 };

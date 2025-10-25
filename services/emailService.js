@@ -8,8 +8,13 @@ const transporter = nodemailer.createTransport({
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS
-  }
+  },
+  // Add timeout settings
+  connectionTimeout: 50000, // 10 seconds
+  greetingTimeout: 50000,
+  socketTimeout: 50000
 });
+
 
 export const sendOTPEmail = async (email, otp) => {
   const mailOptions = {
@@ -25,14 +30,20 @@ export const sendOTPEmail = async (email, otp) => {
         </div>
         <p style="color: #666;">This OTP will expire in <strong>5 minutes</strong>.</p>
         <p style="color: #666;">If you didn't request this, please ignore this email.</p>
-        <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
-        <p style="color: #999; font-size: 12px;">This is an automated email, please do not reply.</p>
       </div>
     `
   };
 
   try {
-    await transporter.sendMail(mailOptions);
+    // Add timeout promise
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Email timeout')), 15000)
+    );
+
+    const sendPromise = transporter.sendMail(mailOptions);
+
+    await Promise.race([sendPromise, timeoutPromise]);
+    
     return { success: true, message: 'OTP sent successfully' };
   } catch (error) {
     console.error('Email error:', error);

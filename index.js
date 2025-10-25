@@ -5,33 +5,51 @@ import routes from "./routes/index.js";
 import { Server } from "socket.io";
 import http from "http";
 import initSocket from "./socketServer.js";
+import path from "path";
+import { fileURLToPath } from "url";
 
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const app = express();
+
+// Middlewares
 app.use(express.json());
-app.use(express.static("public"));
 app.use(express.urlencoded({ extended: true }));
+app.use(express.static(path.join(__dirname, "public")));
+
 // Routes
 app.use("/api", routes);
 
-// Connect to DB
+app.get("/terms", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "terms.html"));
+});
+
+app.get("/privacy", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "privacy.html"));
+});
+
+// Connect to MongoDB
 mongoose
-  .connect(process.env.MONGO_URL)
+  .connect(process.env.MONGO_URL, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  })
   .then(() => {
     console.log("✅ MongoDB connected");
 
-    // Create HTTP server for both Express + Socket
+    // Create HTTP server (for both Express + Socket.IO)
     const server = http.createServer(app);
 
-    // Attach socket.io
+    // Initialize Socket.IO
     const io = new Server(server, {
       cors: { origin: "*" },
     });
-
-    // Initialize socket logic
     initSocket(io);
 
-    // ✅ Listen using `server`, not `app`
+    // Start server
     const PORT = process.env.PORT || 4000;
     server.listen(PORT, () =>
       console.log(`🚀 Server & Socket running on port ${PORT}`)

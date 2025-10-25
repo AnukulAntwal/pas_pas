@@ -50,3 +50,28 @@ export const sendOTPEmail = async (email, otp) => {
     throw new Error('Failed to send OTP email');
   }
 };
+// import dotenv from 'dotenv';
+// import { Resend } from 'resend';
+// dotenv.config();
+// const resend = new Resend(process.env.RESEND_API_KEY);
+
+// export const sendOTPEmail = async (email, otp) => {
+//   try {
+//     await resend.emails.send({
+//       from: 'onboarding@resend.dev',
+//       to: 'officework7915419@gmail.com',
+//       subject: 'Password Reset OTP',
+//       html: `
+//         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+//           <h2>Password Reset Request</h2>
+//           <p>Your OTP is: <strong style="font-size: 24px;">${otp}</strong></p>
+//           <p>This OTP will expire in 5 minutes.</p>
+//         </div>
+//       `
+//     });
+//     return { success: true, message: 'OTP sent successfully' };
+//   } catch (error) {
+//     console.error('Email error:', error);
+//     throw new Error('Failed to send OTP email');
+//   }
+// };

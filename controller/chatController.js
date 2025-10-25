@@ -65,32 +65,51 @@ export const sendMessage = async (req, res) => {
 
 export const getMessages = async (req, res) => {
   try {
-    const { conversation_id, user_id } = req.query; // 🧩 Add current user_id to identify direction
+    const { conversation_id, user_id, is_read } = req.query;
 
-    if (!conversation_id) {
-      return res
-        .status(400)
-        .json({ success: "fail", message: "conversation_id required", data: [] });
+    if (!conversation_id || !user_id) {
+      return res.status(400).json({
+        status: "fail",
+        message: "conversation_id and user_id are required",
+        data: [],
+      });
     }
 
-    // 🔹 Find all messages of this conversation
-    const messages = await Chat.find({ conversation_id, status: "active" })
+    // 🟢 Step 1: Mark all messages received by this user in this conversation as read
+    if (is_read && Number(is_read) === 1) {
+      await Chat.updateMany(
+        {
+          conversation_id,
+          receiver_id: user_id,
+          is_read: 0,
+        },
+        { $set: { is_read: 1 } }
+      );
+    }
+
+
+    // 🟢 Step 2: Fetch all messages of this conversation
+    const messages = await Chat.find({
+      conversation_id,
+      status: "active",
+    })
       .populate("sender_id", "first_name last_name email phone_number")
       .populate("receiver_id", "first_name last_name email phone_number")
-      .sort({ updatedAt: -1 }); // 🕓 latest message first
+      .sort({ updatedAt: -1 });
 
     if (!messages.length) {
-      return res
-        .status(200)
-        .json({ status: "fail", message: "No messages found", data: [] });
+      return res.status(200).json({
+        status: "fail",
+        message: "No messages found",
+        data: [],
+      });
     }
 
-    // 🔹 Get the first message (for reference info)
+    // 🟢 Step 3: Get reference details
     const firstMsg = messages[0];
-
-    // 🔹 Reference Details
     let refDetails = null;
     let reference_type = "";
+
     if (firstMsg.conversation_for === "package") {
       refDetails = await Package.findById(firstMsg.reference_id).select(
         "pickup_location drop_location package_type price"
@@ -100,10 +119,10 @@ export const getMessages = async (req, res) => {
       refDetails = await Ride.findById(firstMsg.reference_id).select(
         "start_location end_location date_time transport_type"
       );
-      reference_type = "Ride";
+      reference_type = "ride";
     }
 
-    // 🔹 Contact Details (determine chat partner)
+    // 🟢 Step 4: Determine chat partner
     const chatPartner =
       String(messages[0].sender_id._id) === String(user_id)
         ? messages[0].receiver_id
@@ -116,7 +135,7 @@ export const getMessages = async (req, res) => {
       reference_id: firstMsg.reference_id || "",
     };
 
-    // 🔹 Conversation Log
+    // 🟢 Step 5: Conversation logs
     const conversation_log = messages.map((msg) => ({
       conversation: msg.message,
       conversation_date: moment(msg.updatedAt).format("YYYY-MM-DD HH:mm:ss"),
@@ -126,7 +145,7 @@ export const getMessages = async (req, res) => {
       is_read: msg.is_read ? 1 : 0,
     }));
 
-    // 🔹 Reference details formatted
+    // 🟢 Step 6: Reference info formatted
     const reference_details = {
       _id: refDetails?._id || "",
       reference_id: firstMsg.reference_id || "",
@@ -150,11 +169,15 @@ export const getMessages = async (req, res) => {
     });
   } catch (error) {
     console.error("❌ getMessages error:", error);
-    return res
-      .status(500)
-      .json({ status: "fail", message: "Internal server error",error:error.message, data: [] });
+    return res.status(500).json({
+      status: "fail",
+      message: "Internal server error",
+      error: error.message,
+      data: [],
+    });
   }
 };
+
 
 
 

@@ -80,32 +80,24 @@ export const registerController = async (req, res) => {
 
 export const forgotPassword = async (req, res) => {
   try {
-    const { email } = req.body;
+    const { email, newPassword } = req.body;
+     
+    if(email && !newPassword){
+      const user = await User.findOne({ email });
+      if (!user) {
+        return res.status(404).json({ status: "fail", message: "User not found", data:[] });
+      }
+      return res.status(200).json({ status: "success", message: "User verified successfully", data:user });
 
-    if (!email) {
-      return res.status(400).json({ status: "fail", message: "Email is required", data:[] });
     }
 
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(404).json({ status: "fail", message: "User not found", data:[] });
+    if(email && newPassword){
+      const user = await User.findOne({ email });
+      const updatePassword = await User.updateOne({ email:email },{$set: {password:newPassword}});
+      return res.status(200).json({ status: "success", message: "User password updated successfully", data:updatePassword });
+
     }
-
-    // Generate random token
-    const resetToken = crypto.randomBytes(20).toString("hex");
-
-    // Save hashed token + expiry (10 mins)
-    user.resetPasswordToken = crypto.createHash("sha256").update(resetToken).digest("hex");
-    user.resetPasswordExpire = Date.now() + 10 * 60 * 1000;
-
-   const userDetails =  await user.save();
-
-    return res.status(200).json({
-      status: "success",
-      message: "Password reset token generated successfully",
-      token: resetToken, // 👈 Flutter will use this
-      data:userDetails
-    });
+    return res.status(404).json({ status: "fail", message: "Please fill the required fields", data:[] });
   } catch (error) {
     return res.status(500).json({ status: "fail", message: error.message,data:[] });
   }

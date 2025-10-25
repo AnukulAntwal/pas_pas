@@ -56,23 +56,115 @@ const initSocket = (io) => {
 
         console.log(`💬 Message sent in conversation ${conversation_id}`);
       } catch (err) {
-        console.error("❌ Error sending message:", err);
+        console.error(" Error sending message:", err);
         socket.emit("error", { message: "Failed to send message" });
       }
     });
 
-    // ✅ Get all messages of a conversation
-    socket.on("getMessages", async ({ conversation_id }) => {
-      try {
-        const messages = await Chat.find({ conversation_id })
-          .sort({ createdAt: 1 })
-          .lean();
-        socket.emit("conversationMessages", messages);
-      } catch (err) {
+    socket.on("getMessages", async ({ conversation_id, user_id, is_read }) => {
+    try {
+        if (!conversation_id || !user_id) {
+        return socket.emit("error", {
+            message: "conversation_id and user_id are required",
+        });
+        }
+
+        // 🟢 Step 1: Update messages as read only if is_read=1
+        if (is_read && Number(is_read) === 1) {
+        await Chat.updateMany(
+            {
+            conversation_id,
+            receiver_id: user_id,
+            is_read: 0,
+            },
+            { $set: { is_read: 1 } }
+        );
+        }
+
+        // 🟢 Step 2: Fetch all messages of this conversation
+        const messages = await Chat.find({
+        conversation_id,
+        status: "active",
+        })
+        .populate("sender_id", "first_name last_name email phone_number")
+        .populate("receiver_id", "first_name last_name email phone_number")
+        .sort({ updatedAt: -1 });
+
+        if (!messages.length) {
+        return socket.emit("conversationMessages", {
+            status: "fail",
+            message: "No messages found",
+            data: [],
+        });
+        }
+
+        // 🟢 Step 3: Get reference details
+        const firstMsg = messages[0];
+        let refDetails = null;
+        let reference_type = "";
+
+        if (firstMsg.conversation_for === "package") {
+        refDetails = await Package.findById(firstMsg.reference_id).select(
+            "pickup_location drop_location package_type price"
+        );
+        reference_type = "package";
+        } else if (firstMsg.conversation_for === "ride") {
+        refDetails = await Ride.findById(firstMsg.reference_id).select(
+            "start_location end_location date_time transport_type"
+        );
+        reference_type = "ride";
+        }
+
+        // 🟢 Step 4: Determine chat partner
+        const chatPartner =
+        String(messages[0].sender_id._id) === String(user_id)
+            ? messages[0].receiver_id
+            : messages[0].sender_id;
+
+        const contact_details = {
+        id: chatPartner._id,
+        user_name: `${chatPartner.first_name} ${chatPartner.last_name}`,
+        contact_number: chatPartner.phone_number,
+        reference_id: firstMsg.reference_id || "",
+        };
+
+        // 🟢 Step 5: Conversation logs
+        const conversation_log = messages.map((msg) => ({
+        conversation: msg.message,
+        conversation_date: moment(msg.updatedAt).format("YYYY-MM-DD HH:mm:ss"),
+        conversation_id: msg.conversation_id,
+        direction:
+            String(msg.sender_id._id) === String(user_id) ? "outbound" : "inbound",
+        is_read: msg.is_read ? 1 : 0,
+        }));
+
+        // 🟢 Step 6: Reference details formatted
+        const reference_details = {
+        _id: refDetails?._id || "",
+        reference_id: firstMsg.reference_id || "",
+        reference_type,
+        pickup_location:
+            refDetails?.pickup_location || refDetails?.start_location || "",
+        drop_location:
+            refDetails?.drop_location || refDetails?.end_location || "",
+        price: refDetails?.price || "",
+        };
+
+        // ✅ Final emit back to the user
+        socket.emit("conversationMessages", {
+        status: "success",
+        message: "Messages fetched successfully",
+        data: {
+            contact_details,
+            reference_details,
+            conversation_log,
+        },
+        });
+    } catch (err) {
         console.error("❌ Error getting messages:", err);
-        socket.emit("error", { message: "Failed to fetch messages" });
-      }
-    });
+        socket.emit("error", { message: "Failed to fetch messages", error: err.message });
+    }
+});
 
     // ✅ Get conversation list for a user
     socket.on("getConversations", async ({ user_id }) => {

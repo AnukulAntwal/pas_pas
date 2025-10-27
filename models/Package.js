@@ -22,6 +22,13 @@ const packageSchema = new mongoose.Schema(
     drop_long: { type: Number, required: true },
     sender_name: { type: String, required: true },
     receiver_name: { type: String, required: true },
+    route_path: [
+    {
+      lat: { type: Number },
+      long: { type: Number },
+      _id: false
+    },
+  ],
 
     date_time: { type: Date, required: true },
 
@@ -31,6 +38,10 @@ const packageSchema = new mongoose.Schema(
     price: { type: Number, required: true },
 
     is_signature_required: { type: Boolean, default: false },
+    booking_type: {type: String,enum: ["book", "cancel","pending"],default: "pending"},
+    is_available: {type: String,enum: ["yes", "acquired"],default: "yes"},
+    booked_by: {type: mongoose.Schema.Types.ObjectId,
+      ref: "User"},
   },
   {
     timestamps: true,
@@ -48,6 +59,8 @@ packageSchema.path("createdAt").get(function (date) {
 packageSchema.path("updatedAt").get(function (date) {
   return moment(date).format("YYYY-MM-DD HH:mm:ss");
 });
-
+packageSchema.path("date_time").get(function (date) {
+  return moment(date).format("YYYY-MM-DD HH:mm:ss");
+});
 const Package = mongoose.model("Package", packageSchema);
 export default Package;

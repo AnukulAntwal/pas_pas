@@ -116,7 +116,7 @@ export const saveDeliveryService = async (req, res) => {
 
     const savedService = await newService.save();
 
-    res.status(201).json({
+    res.status(200).json({
       status: 'success',
       message: "Your service has been successfully published",
       data: savedService,
@@ -154,7 +154,7 @@ export const getServices = async (req, res) => {
     // 🧩 Step 1: Validate input
     if (!start_lat || !start_long || !end_lat || !end_long || !date_time) {
       return res.status(400).json({
-        success: false,
+        success: 'fail',
         message: "Please provide start_lat, start_long, end_lat, end_long, and date_time",
       });
     }
@@ -210,19 +210,20 @@ export const getServices = async (req, res) => {
         ]
       },
       { route_path: 0 } 
-    ).populate('uid', 'name email phone') // ← populate uid with specific user fields
+    ).populate('uid', 'first_name last_name email phone_number') // ← populate uid with specific user fields
     .select('-route_path').sort({ date_time: 1 });
 
     // 🧩 Step 3: Handle no results
     if (!rides.length) {
-      return res.status(404).json({
-        status: 'fail',
+     res.status(200).json({
+        status: 'success',
         message: "No rides found for this route on the given date",
+        data: [],
       });
     }
 
     // ✅ Step 4: Success response
-    res.json({
+    res.status(200).json({
       status: 'success',
       count: rides.length,
       message: "Matching rides found!",
@@ -233,12 +234,39 @@ export const getServices = async (req, res) => {
     res.status(500).json({
       status: 'fail',
       message: "Internal server error",
-      error: error.message,
+      data:[],
     });
   }
 };
 
+export const deleteDeliveryService = async (req, res) => {
+  try {
+    const { service_id } = req.query; // id aayegi from URL params
 
+    // Check if service exists
+    const service = await DeliveryService.findById(service_id);
+    if (!service) {
+      return res.status(404).json({
+        status: 'fail',
+        message: 'Service not found',
+        data:[]
+      });
+    }
 
+    // Delete the service
+  const deletedService =   await DeliveryService.findByIdAndDelete(service_id);
 
-
+    return res.status(200).json({
+      status: 'success',
+      message: 'Service deleted successfully',
+      data:deletedService
+    });
+  } catch (error) {
+    console.error('Error deleting service:', error);
+    res.status(500).json({
+      status: 'fail',
+      message: 'Internal Server Error',
+      data:[],
+    });
+  }
+};

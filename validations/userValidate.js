@@ -49,4 +49,22 @@ export const registerValidate = Joi.object({
     "string.min": "Password must be at least 5 characters",
     "any.required": "Password is required",
   }),
+  // ✅ Add these new optional fields
+  profile_image: Joi.any().optional(),      // file field
+  is_valid_adhar: Joi.number().valid(0, 1).optional(),
+  is_valid_pan: Joi.number().valid(0, 1).optional(),
+
 });
+export const validEmail = Joi.object({
+   email: Joi.string().email().required().messages({
+    "string.email": "Valid email required",
+    "any.required": "Email is required",
+  }),
+})
+
+export const validPassword = Joi.object({
+   password: Joi.string().min(5).required().messages({
+    "string.min": "Password must be at least 5 characters",
+    "any.required": "Password is required",
+  }),
+})

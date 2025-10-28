@@ -38,8 +38,10 @@ const packageSchema = new mongoose.Schema(
     price: { type: Number, required: true },
 
     is_signature_required: { type: Boolean, default: false },
-    booking_type: {type: String,enum: ["book", "cancel","pending"],default: "pending"},
-    is_available: {type: String,enum: ["yes", "acquired"],default: "yes"},
+    booking_type: {type: String,enum: ["Booked", "Cancelled"],default:null},
+    is_available: {type: Number,default:1},
+    cancel_reason: { type: String},
+
     booked_by: {type: mongoose.Schema.Types.ObjectId,
       ref: "User"},
   },

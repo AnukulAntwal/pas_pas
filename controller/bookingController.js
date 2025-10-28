@@ -1,23 +1,32 @@
-// controllers/bookingController.js
-import User from "../models/User.js";  // <-- add this
+import Chat from "../models/Chat.js";
+import User from "../models/User.js";
 import Package from "../models/Package.js";
 import DeliveryService from "../models/DeliveryService.js";
+import { getNextConversationId } from "../utils/getNextId.js";
+import Notification from "../models/Notification.js";
+import moment from "moment";
 
 export const bookOrCancel = async (req, res) => {
   try {
-    const { reference_id, user_id, type, booking_type } = req.body;
-    // action => "book" | "cancel"
-    // type => "package" | "service"
+    const {
+      reference_id,
+      user_id,
+      type,
+      booking_type,
+      message,
+      cancel_reason,
+    } = req.body;
 
     if (!reference_id || !user_id || !type || !booking_type) {
       return res.status(400).json({
         status: "fail",
-        message: "Missing required fields (reference_id, user_id, type, action)",
-        data:[]
+        message:
+          "Missing required fields (reference_id, user_id, type, booking_type)",
+        data: [],
       });
     }
 
-    // Pick model based on type
+    // ✅ Select model based on type
     let Model;
     if (type === "package") Model = Package;
     else if (type === "service") Model = DeliveryService;
@@ -25,57 +34,145 @@ export const bookOrCancel = async (req, res) => {
       return res.status(400).json({
         status: "fail",
         message: "Invalid type (must be package or service)",
-        data:[]
+        data: [],
       });
     }
 
-    // Fetch reference record
+    // ✅ Fetch record
     const record = await Model.findById(reference_id);
     if (!record) {
       return res.status(404).json({
-        status: "success",
+        status: "fail",
         message: `${type} not found`,
-        data:[]
+        data: [],
       });
     }
 
-    // Booking logic
-    if (booking_type === "book") {
-      if (record.is_available === "acquired") {
+    let chatResponse = null;
+
+    // ✅ BOOKING LOGIC
+    if (booking_type === "Booked") {
+      if (record.is_available === 0) {
         return res.status(400).json({
           status: "fail",
           message: "Already booked by another user",
-          data:[]
+          data: [],
         });
       }
 
-      record.booking_type = "book";
-      record.is_available = "acquired";
+      record.booking_type = "Booked";
+      record.is_available = 0;
       record.booked_by = user_id;
+
+      // 🟢 Create chat only if message provided
+      if (message && message.trim() !== "") {
+        const receiver_id =
+          record.uid?.toString() === user_id.toString()
+            ? record.booked_by
+            : record.uid;
+
+        if (receiver_id) {
+          const conversation_id = await getNextConversationId();
+
+          // Create Chat
+          await Chat.create({
+            conversation_id,
+            conversation_for: type,
+            reference_id,
+            sender_id: user_id,
+            receiver_id,
+            message,
+            unread_count: 1,
+            is_read: 0,
+          });
+
+          // Create Notification
+          await Notification.create({
+            sender_id: user_id,
+            receiver_id,
+            conversation_id,
+            reference_id,
+            message_text: message,
+            type: "message",
+          });
+
+          // 🧩 Fetch contact details
+          const receiver = await User.findById(receiver_id)
+            .select("first_name last_name phone_number")
+            .lean();
+
+          // 🧩 Fetch conversation logs
+          const allChats = await Chat.find({ conversation_id })
+            .sort({ createdAt: -1 })
+            .lean();
+
+          const conversation_log = allChats.map((c) => ({
+            conversation: c.message,
+            conversation_date: moment(c.createdAt).format(
+              "YYYY-MM-DD HH:mm:ss"
+            ),
+            conversation_id: c.conversation_id,
+            direction:
+              c.sender_id.toString() === user_id.toString()
+                ? "outbound"
+                : "inbound",
+            is_read: c.is_read,
+          }));
+
+          // 🧩 Build formatted Chat object
+          chatResponse = {
+            contact_details: {
+              id: receiver._id,
+              user_name: `${receiver.first_name || ""} ${
+                receiver.last_name || ""
+              }`.trim(),
+              contact_number: receiver.phone_number || "",
+              reference_id: record._id,
+            },
+            reference_details: {
+              _id: record._id,
+              reference_id: record._id,
+              reference_type: type,
+              pickup_location:
+                record.pickup_location || record.start_location || "",
+              drop_location:
+                record.drop_location || record.end_location || "",
+              price: record.price || "",
+            },
+            conversation_log,
+          };
+        }
+      }
     }
 
-    if (booking_type === "cancel") {
+    // 🔴 CANCELLATION LOGIC
+    else if (booking_type === "Cancelled") {
       if (record.booked_by?.toString() !== user_id.toString()) {
         return res.status(403).json({
           status: "fail",
           message: "You can only cancel your own booking",
-          data:[]
+          data: [],
         });
       }
 
-      record.booking_type = "cancel";
-      record.is_available = "yes";
+      record.booking_type = "Cancelled";
+      record.is_available = 1;
       record.booked_by = null;
+
+      // Only update reason (no chat creation)
+      if (cancel_reason && cancel_reason.trim() !== "") {
+        record.cancel_reason = cancel_reason;
+      }
     }
 
     await record.save();
 
-    // Fetch user details (booked_by)
+    // ✅ Fetch user details
     const user = await User.findById(user_id)
       .select("first_name last_name phone_number")
       .lean();
 
-    // Fetch reference details with selected fields
+    // ✅ Fetch reference details
     const referenceDetails = await Model.findById(reference_id)
       .select(
         type === "service"
@@ -84,20 +181,22 @@ export const bookOrCancel = async (req, res) => {
       )
       .lean();
 
-    // Response
+    // ✅ Final Response
     return res.status(200).json({
       status: "success",
       message:
-        booking_type === "book"
+        booking_type === "Booked"
           ? `${type} booked successfully`
-          : `${type} booking canceled successfully`,
+          : `${type} booking cancelled successfully`,
       data: {
         reference_id: record._id,
         type,
         booking_type: record.booking_type,
         is_available: record.is_available,
+        cancel_reason: record.cancel_reason || null,
         booked_by: user || null,
         reference_details: referenceDetails || null,
+        Chat: chatResponse || null,
       },
     });
   } catch (error) {
@@ -105,7 +204,7 @@ export const bookOrCancel = async (req, res) => {
     return res.status(500).json({
       status: "fail",
       message: error.message,
-      data:[]
+      data: [],
     });
   }
 };

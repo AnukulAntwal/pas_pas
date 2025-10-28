@@ -29,7 +29,7 @@ export const bookOrCancel = async (req, res) => {
     // ✅ Select model based on type
     let Model;
     if (type === "package") Model = Package;
-    else if (type === "service") Model = DeliveryService;
+    else if (type === "ride") Model = DeliveryService;
     else {
       return res.status(400).json({
         status: "fail",
@@ -175,7 +175,7 @@ export const bookOrCancel = async (req, res) => {
     // ✅ Fetch reference details
     const referenceDetails = await Model.findById(reference_id)
       .select(
-        type === "service"
+        type === "ride"
           ? "start_location end_location date_time price"
           : "pickup_address delivery_address package_type weight price"
       )
@@ -201,6 +201,77 @@ export const bookOrCancel = async (req, res) => {
     });
   } catch (error) {
     console.error("Booking error:", error);
+    return res.status(500).json({
+      status: "fail",
+      message: error.message,
+      data: [],
+    });
+  }
+};
+
+
+export const getMyBookings = async (req, res) => {
+  try {
+    const { user_id } = req.query;
+
+    if (!user_id) {
+      return res.status(400).json({
+        status: "fail",
+        message: "user_id is required",
+        data: [],
+      });
+    }
+
+    // ⏰ Current time → Next 24 hours
+    const startOfDay = moment().startOf("day").toDate();
+    const next24Hours = moment().add(24, "hours");
+
+    // ✅ Fetch packages booked in next 24 hours
+    const packageBookings = await Package.find({
+      booked_by: user_id,
+      booking_type: "Booked",
+      updatedAt: { $gte:startOfDay, $lte: next24Hours.toDate() },
+    })
+      .sort({ updatedAt: -1 })
+      .lean();
+
+    // ✅ Fetch delivery services booked in next 24 hours
+    const serviceBookings = await DeliveryService.find({
+      booked_by: user_id,
+      booking_type: "Booked",
+      updatedAt: { $gte: startOfDay, $lte: next24Hours.toDate() },
+    })
+      .sort({ updatedAt: -1 })
+      .lean();
+
+    // 🧩 Merge and format both
+    const allBookings = [...packageBookings, ...serviceBookings].map((item) => ({
+      _id: item._id,
+      type: item.pickup_location ? "package" : "ride",
+      booking_type: item.booking_type,
+      is_available: item.is_available,
+      cancel_reason: item.cancel_reason || null,
+      pickup_location: item.pickup_location || item.start_location || "",
+      drop_location: item.drop_location || item.end_location || "",
+      price: item.price || 0,
+      booked_at: moment(item.updatedAt).format("YYYY-MM-DD HH:mm:ss"),
+    }));
+
+    if (allBookings.length === 0) {
+      return res.status(200).json({
+        status: "success",
+        message: "No bookings found in the next 24 hours",
+        data: [],
+      });
+    }
+
+    return res.status(200).json({
+      status: "success",
+      message: "Bookings are retrieved successfully",
+      data: allBookings,
+    });
+  } catch (error) {
+    console.error("Error in getMyBookings:", error);
     return res.status(500).json({
       status: "fail",
       message: error.message,

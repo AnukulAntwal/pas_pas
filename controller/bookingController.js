@@ -12,24 +12,29 @@ export const bookOrCancel = async (req, res) => {
       reference_id,
       user_id,
       type,
-      booking_type,
+      is_available,
       message,
       cancel_reason,
     } = req.body;
 
-    if (!reference_id || !user_id || !type || !booking_type) {
+      if ([reference_id, user_id, type, is_available].some(v => v === undefined)) {
       return res.status(400).json({
         status: "fail",
-        message:
-          "Missing required fields (reference_id, user_id, type, booking_type)",
+        message: "Missing required fields (reference_id, user_id, type, is_available)",
         data: [],
       });
     }
 
+  let bookedFor;
+      if(type === 0){
+        bookedFor = 'package';
+      }else{
+        bookedFor = 'ride';
+      }
     // ✅ Select model based on type
     let Model;
-    if (type === "package") Model = Package;
-    else if (type === "ride") Model = DeliveryService;
+    if (type === 0) Model = Package;
+    else if (type === 1) Model = DeliveryService;
     else {
       return res.status(400).json({
         status: "fail",
@@ -43,7 +48,7 @@ export const bookOrCancel = async (req, res) => {
     if (!record) {
       return res.status(404).json({
         status: "fail",
-        message: `${type} not found`,
+        message: `${bookedFor} not found`,
         data: [],
       });
     }
@@ -51,7 +56,7 @@ export const bookOrCancel = async (req, res) => {
     let chatResponse = null;
 
     // ✅ BOOKING LOGIC
-    if (booking_type === "Booked") {
+    if (is_available === 0) {
       if (record.is_available === 0) {
         return res.status(400).json({
           status: "fail",
@@ -146,7 +151,7 @@ export const bookOrCancel = async (req, res) => {
     }
 
     // 🔴 CANCELLATION LOGIC
-    else if (booking_type === "Cancelled") {
+    else if (is_available === 1) {
       if (record.booked_by?.toString() !== user_id.toString()) {
         return res.status(403).json({
           status: "fail",
@@ -175,19 +180,19 @@ export const bookOrCancel = async (req, res) => {
     // ✅ Fetch reference details
     const referenceDetails = await Model.findById(reference_id)
       .select(
-        type === "ride"
+        type === 0
           ? "start_location end_location date_time price"
           : "pickup_address delivery_address package_type weight price"
       )
       .lean();
-
+    
     // ✅ Final Response
     return res.status(200).json({
       status: "success",
       message:
-        booking_type === "Booked"
-          ? `${type} booked successfully`
-          : `${type} booking cancelled successfully`,
+        is_available === 0
+          ? `${bookedFor} booked successfully`
+          : `${bookedFor} booking cancelled successfully`,
       data: {
         reference_id: record._id,
         type,

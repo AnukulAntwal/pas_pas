@@ -1,10 +1,11 @@
 import mongoose from "mongoose";
 import moment from "moment";
+// import { required } from "joi";
 // import { Number } from "joi";
 
 const chatSchema = new mongoose.Schema({
   conversation_id: { type: Number },
-  conversation_for: { type: String, enum: ["ride", "package"], required: true },
+  conversation_for: { type: Number, default:null,required:true},
   reference_id: { type: mongoose.Schema.Types.ObjectId, required: true },
   sender_id: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   receiver_id: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },

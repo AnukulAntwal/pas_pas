@@ -21,6 +21,14 @@ export const sendMessage = async (req, res) => {
       message,
     } = req.body;
 
+    if (!reference_id || conversation_for === undefined || !sender_id || !receiver_id || !message )
+    {
+    return res.status(400).json({
+        status: "fail",
+        message: "Missing required fields (reference_id, conversation_for, sender_id, receiver_id, message)",
+        data: [],
+    });
+    }
     // ✅ Generate new conversation_id if not provided
     let finalConversationId = conversation_id;
     if (!finalConversationId) {
@@ -110,12 +118,12 @@ export const getMessages = async (req, res) => {
     let refDetails = null;
     let reference_type = "";
 
-    if (firstMsg.conversation_for === "package") {
+    if (firstMsg.conversation_for === 0) {
       refDetails = await Package.findById(firstMsg.reference_id).select(
         "pickup_location drop_location package_type price"
       );
       reference_type = "package";
-    } else if (firstMsg.conversation_for === "ride") {
+    } else if (firstMsg.conversation_for === 1) {
       refDetails = await Ride.findById(firstMsg.reference_id).select(
         "start_location end_location date_time transport_type"
       );
@@ -361,11 +369,11 @@ export const getConversationList = async (req, res) => {
           : "Unknown User";
 
         let reference_details = null;
-        if (conv.conversation_for === "package") {
+        if (conv.conversation_for === 0) {
           reference_details = await Package.findById(conv.reference_id).select(
             "pickup_location drop_location date_time price package_type package_size"
           );
-        } else if (conv.conversation_for === "ride") {
+        } else if (conv.conversation_for === 1) {
           reference_details = await Ride.findById(conv.reference_id).select(
             "start_location end_location date_time"
           );

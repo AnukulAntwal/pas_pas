@@ -284,3 +284,78 @@ export const getMyBookings = async (req, res) => {
     });
   }
 };
+
+export const getMyPublished = async (req, res) => {
+  try {
+    const { user_id } = req.query;
+
+    if (!user_id) {
+      return res.status(400).json({
+        status: "fail",
+        message: "Missing required field (user_id)",
+        data: [],
+      });
+    }
+
+     const user = await User.findById(user_id)
+      .select("name email phone profile_image verified createdAt")
+      .lean();
+    // 🧭 Fetch rides (services)
+    const rides = await DeliveryService.find({ uid: user_id })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // 📦 Fetch packages
+    const packages = await Package.find({ uid: user_id })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // 🧩 Combine both arrays
+    const combined = [
+      ...rides.map((r) => ({
+        id: r._id,
+        user,
+        type: "ride",
+        start_location: r.start_location,
+        end_location: r.end_location,
+        price: r.price,
+        transport_type: r.transport_type || "N/A",
+        description: r.description || "",
+        is_available: r.is_available,
+        booking_type: r.booking_type || null,
+        created_at: r.createdAt,
+        date_time: r.date_time,
+      })),
+      ...packages.map((p) => ({
+        id: p._id,
+        user,
+        type: "package",
+        pickup_location: p.pickup_location,
+        drop_location: p.drop_location,
+        price: p.price,
+        description: p.description || "",
+        is_available: p.is_available,
+        booking_type: p.booking_type || null,
+        created_at: p.createdAt,
+        date_time: p.date_time,
+      })),
+    ];
+
+    // 🕒 Sort by creation date (latest first)
+    combined.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+    return res.status(200).json({
+      status: "success",
+      message: "My published rides and packages fetched successfully",
+      data: combined,
+    });
+  } catch (error) {
+    console.error("Error fetching published items:", error);
+    return res.status(500).json({
+      status: "fail",
+      message: "Internal server error",
+      data: [],
+    });
+  }
+};
+

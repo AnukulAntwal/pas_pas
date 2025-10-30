@@ -24,7 +24,7 @@ router.use('/package', verifyCustomToken, packageDeleteRoute);
 router.use('/chat', verifyCustomToken, chatRoutes);
 router.use('/notification', verifyCustomToken, notificationRoutes);
 router.use('/booking', verifyCustomToken, bookingRoute);
-router.use('/services', verifyCustomToken, bookingRoute);
+router.use('/publications', verifyCustomToken, bookingRoute);
 
 
 

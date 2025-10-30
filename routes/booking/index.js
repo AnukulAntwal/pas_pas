@@ -5,6 +5,6 @@ const router = express.Router();
 
 router.post("/BookOrCancel", bookOrCancel);
 router.get("/getMyBookings", getMyBookings);
-router.get("/getMyPublished", getMyPublished);
+router.get("/getMyPublications", getMyPublished);
 
 export default router;

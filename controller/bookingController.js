@@ -315,7 +315,7 @@ export const getMyPublished = async (req, res) => {
       ...rides.map((r) => ({
         id: r._id,
         user,
-        type: "ride",
+        type: 1,
         start_location: r.start_location,
         end_location: r.end_location,
         price: r.price,
@@ -329,7 +329,7 @@ export const getMyPublished = async (req, res) => {
       ...packages.map((p) => ({
         id: p._id,
         user,
-        type: "package",
+        type: 0,
         pickup_location: p.pickup_location,
         drop_location: p.drop_location,
         price: p.price,

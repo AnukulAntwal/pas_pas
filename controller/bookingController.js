@@ -323,8 +323,12 @@ export const getMyPublished = async (req, res) => {
         description: r.description || "",
         is_available: r.is_available,
         booking_type: r.booking_type || null,
-        created_at: r.createdAt,
-        date_time: r.date_time,
+        created_at: r.createdAt
+          ? moment(r.createdAt).format("YYYY-MM-DD HH:mm:ss")
+          : null,
+        date_time: r.date_time
+          ? moment(r.date_time).format("YYYY-MM-DD HH:mm:ss")
+          : null,
       })),
       ...packages.map((p) => ({
         id: p._id,
@@ -336,8 +340,12 @@ export const getMyPublished = async (req, res) => {
         description: p.description || "",
         is_available: p.is_available,
         booking_type: p.booking_type || null,
-        created_at: p.createdAt,
-        date_time: p.date_time,
+        created_at: p.createdAt
+          ? moment(p.createdAt).format("YYYY-MM-DD HH:mm:ss")
+          : null,
+        date_time: p.date_time
+          ? moment(p.date_time).format("YYYY-MM-DD HH:mm:ss")
+          : null,
       })),
     ];
 

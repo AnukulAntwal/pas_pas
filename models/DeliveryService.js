@@ -37,7 +37,7 @@ const deliveryServiceSchema = new mongoose.Schema(
     description: { type: String },
 
     date_time: { type: Date, required: true },
-    booking_type: {type: String,enum: ["Booked", "Cancelled"],default:null},
+    booking_type: {type: String,enum: ["Booked", "Cancelled","Available"],default:"Available"},
     is_available: {type: Number,default:1},
     cancel_reason: { type: String},
     booked_by: {

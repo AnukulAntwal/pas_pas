@@ -38,7 +38,7 @@ const packageSchema = new mongoose.Schema(
     price: { type: Number, required: true },
 
     is_signature_required: { type: Boolean, default: false },
-    booking_type: {type: String,enum: ["Booked", "Cancelled"],default:null},
+    booking_type: {type: String,enum: ["Booked", "Cancelled","Available"],default:"Available"},
     is_available: {type: Number,default:1},
     cancel_reason: { type: String},
 

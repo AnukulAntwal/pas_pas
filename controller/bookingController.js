@@ -413,10 +413,10 @@ const combined = [
       ...r,
       type: 1,
       user,
-      createdAt: r.createdAt
+      created_at: r.createdAt
         ? moment(r.createdAt).format("YYYY-MM-DD HH:mm:ss")
         : null,
-      updatedAt: r.updatedAt
+      updated_at: r.updatedAt
         ? moment(r.updatedAt).format("YYYY-MM-DD HH:mm:ss")
         : null,
       date_time: r.date_time

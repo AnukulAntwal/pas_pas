@@ -145,7 +145,7 @@ export const deletePackage = async (req, res) => {
     return res.status(200).json({
       status: "success",
       message: "Package deleted successfully",
-      data:deletePackage
+      data:[]
     });
   } catch (error) {
     console.error("❌ Error deleting package:", error);

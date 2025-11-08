@@ -261,7 +261,7 @@ export const deleteDeliveryService = async (req, res) => {
     return res.status(200).json({
       status: 'success',
       message: 'Service deleted successfully',
-      data:deletedService
+      data:[]
     });
   } catch (error) {
     console.error('Error deleting service:', error);

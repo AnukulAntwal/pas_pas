@@ -14,7 +14,7 @@ import bookingRoute from '../booking/index.js';
 const router = express.Router();
 
 // mount auth routes at /auth
-router.use('/auth', verifyCustomToken, authRoute);
+router.use('/auth', authRoute);
 router.use('/publish',verifyCustomToken, packageRoute);
 router.use('/publish',verifyCustomToken, deliveryRoute);
 router.use('/search',verifyCustomToken, deliveryGetRoute);

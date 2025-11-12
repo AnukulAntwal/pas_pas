@@ -41,6 +41,9 @@ const userSchema = new mongoose.Schema(
     last_login:{
       type: Date
     },
+    token:{
+      type:String
+    },
     profile_image: {
     type: String,
     default: null,

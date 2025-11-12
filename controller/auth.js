@@ -4,39 +4,80 @@ import crypto from "crypto";
 import bcrypt from "bcryptjs";
 
 // Login api function
-export const loginController = async (req, res) => {
+// export const loginController = async (req, res) => {
   
+//   const { error } = loginValidate.validate(req.body);
+//   if (error)
+//     return res.status(400).json({ error: error.details[0].message });
+
+//   try {
+//     const { email, password , device_type , device_token} = req.body;
+   
+//     const user = await User.findOne({ email });
+//     if (!user) {
+//       return res.status(401).json({ error: "Invalid email or password" });
+//     }
+//     const isMatch = await bcrypt.compare(password, user.password);
+//     if (!isMatch) {
+//       return res.status(401).json({ error: "Invalid email or password" });
+//     }
+//     user.device_type = device_type;
+//     user.device_token = device_token;
+//     user.last_login = new Date();
+    
+//     const userSave = await user.save()
+   
+//     return res.status(200).json({
+//       status: "success",
+//       message: "Login successful",
+//       data: userSave
+//     });
+//   } catch (e) {
+//     return res.status(500).json({status: 'fail', error: e.message });
+//   }
+// };
+export const loginController = async (req, res) => {
+  // Step 1: Validate request body
   const { error } = loginValidate.validate(req.body);
   if (error)
     return res.status(400).json({ error: error.details[0].message });
 
   try {
-    const { email, password , device_type , device_token} = req.body;
-   
+    const { email, password, device_type, device_token } = req.body;
+
+    // Step 2: Find user
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(401).json({ error: "Invalid email or password" });
     }
+
+    // Step 3: Compare password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(401).json({ error: "Invalid email or password" });
     }
+
+    // Step 4: Generate random token (32 bytes = 64-char hex string)
+    const token = crypto.randomBytes(32).toString("hex");
+
+    // Step 5: Update user record
     user.device_type = device_type;
     user.device_token = device_token;
     user.last_login = new Date();
-    
-    const userSave = await user.save()
-   
+    user.token = token; // ✅ save random token
+
+    const userSave = await user.save();
+
+    // Step 6: Respond with token
     return res.status(200).json({
       status: "success",
       message: "Login successful",
-      data: userSave
+      data: userSave,
     });
   } catch (e) {
-    return res.status(500).json({status: 'fail', error: e.message });
+    return res.status(500).json({ status: "fail", error: e.message });
   }
 };
-
 
 export const registerController = async (req, res) => {
   

@@ -145,7 +145,7 @@ export const deletePackage = async (req, res) => {
     return res.status(200).json({
       status: "success",
       message: "Package deleted successfully",
-      data:deletePackage
+      data:[]
     });
   } catch (error) {
     console.error("❌ Error deleting package:", error);
@@ -154,6 +154,37 @@ export const deletePackage = async (req, res) => {
       message: "Internal Server Error",
       error: error.message,
       data:[]
+    });
+  }
+};
+
+// get package details for user edits 
+
+export const getPackageDetail = async (req, res) => {
+  try {
+    const { package_id } = req.query; // 📦 Package ID from URL
+
+    const packageData = await Package.findById(package_id);
+
+    if (!packageData) {
+      return res.status(404).json({
+        status: "fail",
+        message: "Package not found",
+        data: [],
+      });
+    }
+
+    res.status(200).json({
+      status: "success",
+      message: "Package details fetched successfully",
+      data: packageData,
+    });
+  } catch (error) {
+    console.error("Error fetching package:", error);
+    res.status(500).json({
+      status: "fail",
+      message: error.message,
+      data: [],
     });
   }
 };

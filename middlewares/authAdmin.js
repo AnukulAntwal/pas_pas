@@ -4,7 +4,11 @@ export default async function verifyCustomToken(req, res, next) {
   let token = req.headers["authorization"];
 
   if (!token) {
-    return res.status(403).json({ error: "No token provided" });
+    return res.status(403).json({
+      status: "fail",
+      message:"No token provided",
+      data: [],
+    });
   }
 
   // Extract token from "Bearer <token>"
@@ -16,7 +20,11 @@ export default async function verifyCustomToken(req, res, next) {
   const user = await User.findOne({ token });
 
   if (!user) {
-    return res.status(401).json({ error: "Invalid or expired token" });
+    return res.status(401).json({
+      status: "fail",
+      message:"Invalid or expired token",
+      data: [],
+    });
   }
 
   // Attach user to request

@@ -7,7 +7,7 @@ export default async function verifyCustomToken(req, res, next) {
     return res.status(403).json({
       status: "fail",
       message:"No token provided",
-      data: [],
+      auth:false,
     });
   }
 
@@ -23,7 +23,7 @@ export default async function verifyCustomToken(req, res, next) {
     return res.status(401).json({
       status: "fail",
       message:"Invalid or expired token",
-      data: [],
+      auth:false,
     });
   }
 

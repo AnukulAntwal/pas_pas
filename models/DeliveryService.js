@@ -5,7 +5,7 @@ const deliveryServiceSchema = new mongoose.Schema(
   {
     uid: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",   // 🔗 user reference
+      ref: "User",
       required: true,
     },
 
@@ -17,7 +17,6 @@ const deliveryServiceSchema = new mongoose.Schema(
     end_lat: { type: Number, required: true },
     end_long: { type: Number, required: true },
 
-     // 🆕 Store the full path between start and end
     route_path: [
       {
         lat: { type: Number },
@@ -26,23 +25,34 @@ const deliveryServiceSchema = new mongoose.Schema(
       },
     ],
 
-    // 🆕 Optionally store Google polyline string (compact format)
     route_polyline: { type: String },
     
-    transport_type: { type: String, required: true },   // e.g. bike, car, van
+    transport_type: { type: String, required: true },
     price: { type: Number, required: true },
-
     contact_number: { type: String, required: true },
-
     description: { type: String },
 
     date_time: { type: Date, required: true },
-    booking_type: {type: String,enum: ["Booked", "Cancelled","Available"],default:"Available"},
-    is_available: {type: Number,default:1},
-    cancel_reason: { type: String},
+    
+    booking_type: {
+      type: String,
+      enum: ["Booked", "Cancelled", "Available"],
+      default: "Available"
+    },
+    
+    is_available: { type: Number, default: 1 },
+    cancel_reason: { type: String },
+    
     booked_by: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User"   // 🔗 user reference
+      ref: "User"
+    },
+
+    // ✅ CORRECT: TTL field for auto-deletion
+    expiresAt: {
+      type: Date,
+      required: true,
+      // Index will be created separately
     },
   },  
   
@@ -55,14 +65,32 @@ const deliveryServiceSchema = new mongoose.Schema(
   }
 );
 
+// ✅ Create TTL Index - MongoDB will auto-delete documents when expiresAt time passes
+deliveryServiceSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
+// Getters for formatting dates
 deliveryServiceSchema.path("createdAt").get(function (date) {
   return moment(date).format("YYYY-MM-DD HH:mm:ss");
 });
+
 deliveryServiceSchema.path("date_time").get(function (date) {
   return moment(date).format("YYYY-MM-DD HH:mm:ss");
 });
+
 deliveryServiceSchema.path("updatedAt").get(function (date) {
   return moment(date).format("YYYY-MM-DD HH:mm:ss");
+});
+
+// ✅ Pre-save hook: Calculate expiresAt = date_time + 15 days
+deliveryServiceSchema.pre("save", function (next) {
+  // Only calculate if this is a new document OR if date_time changed
+  if (this.isNew || this.isModified("date_time")) {
+    // Calculate expiry: date_time + 15 days
+    const expiryDate = new Date(this.date_time);
+    expiryDate.setDate(expiryDate.getDate() + 15);
+    this.expiresAt = expiryDate;
+  }
+  next();
 });
 
 const DeliveryService = mongoose.model("DeliveryService", deliveryServiceSchema);

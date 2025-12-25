@@ -219,7 +219,7 @@ export const getServices = async (req, res) => {
     if (!rides.length) {
      res.status(200).json({
         status: 'success',
-        message: "No transporters found for this route on the given date",
+        message: "No transporters are available at the moment",
         data: [],
       });
     }

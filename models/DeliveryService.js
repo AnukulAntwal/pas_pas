@@ -28,7 +28,7 @@ const deliveryServiceSchema = new mongoose.Schema(
     route_polyline: { type: String },
     
     transport_type: { type: String, required: true },
-    price: { type: Number, required: true },
+    price: { type: Number },
     contact_number: { type: String, required: true },
     description: { type: String },
 

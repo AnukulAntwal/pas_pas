@@ -98,13 +98,13 @@ export const getPackages = async (req, res) => {
     .sort({ date_time: 1 });
 
     if (!packages.length) {
-      return res.status(200).json({ status: 'success', message: "No packages found", data: [] });
+      return res.status(200).json({ status: 'success', message: "No parcel were found on this route", data: [] });
     }
 
     res.status(200).json({
       status: 'success',
       count: packages.length,
-      message: "Matching packages found!",
+      message: "Matching parcel found!",
       data: packages,
     });
 

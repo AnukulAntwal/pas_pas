@@ -179,3 +179,94 @@ export const resetPassword = async (req, res) => {
     return res.status(500).json({ status: "fail", message: error.message });
   }
 };
+
+export const editProfile = async (req, res) => {
+  try {
+    const { userId }= req.query; // OR req.user.id (JWT)
+
+    const {
+      first_name,
+      last_name,
+      phone_number,
+    } = req.body;
+
+    // 🔍 Check user
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        status: "fail",
+        message: "User not found",
+      });
+    }
+
+    // ✏️ Update fields
+    if (first_name) user.first_name = first_name;
+    if (last_name) user.last_name = last_name;
+    if (phone_number) user.phone_number = phone_number;
+
+    // 🖼️ Profile image update
+    if (req.file) {
+      // delete old image if exists
+      if (user.profile_image) {
+        const oldPath = `uploads/profile_images/${user.profile_image}`;
+        if (fs.existsSync(oldPath)) {
+          fs.unlinkSync(oldPath);
+        }
+      }
+      user.profile_image = req.file.filename;
+    }
+
+    const updatedUser = await user.save();
+
+    return res.status(200).json({
+      status: "success",
+      message: "Profile updated successfully",
+      data: updatedUser,
+    });
+
+  } catch (error) {
+    return res.status(500).json({
+      status: "fail",
+      message: error.message,
+    });
+  }
+};
+
+export const getUserById = async (req, res) => {
+  try {
+    const { userId } = req.query; // OR req.params.userId
+
+    if (!userId) {
+      return res.status(400).json({
+        status: "fail",
+        message: "userId is required",
+      });
+    }
+
+    const user = await User.findById(userId).select("-password");;
+    const baseUrl = `${req.protocol}://${req.get("host")}`;
+
+    if (user?.profile_image) {
+      user.profile_image = `${baseUrl}/uploads/profile_images/${user.profile_image}`;
+    }
+
+    if (!user) {
+      return res.status(404).json({
+        status: "fail",
+        message: "User not found",
+      });
+    }
+
+    return res.status(200).json({
+      status: "success",
+      message: "User details fetched successfully",
+      data: user,
+    });
+
+  } catch (error) {
+    return res.status(500).json({
+      status: "fail",
+      message: error.message,
+    });
+  }
+};

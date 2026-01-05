@@ -182,31 +182,45 @@ export const resetPassword = async (req, res) => {
 
 export const editProfile = async (req, res) => {
   try {
-    const { userId }= req.query; // OR req.user.id (JWT)
+    const { userId } = req.query; // later: req.user.id (JWT)
 
     const {
       first_name,
       last_name,
       phone_number,
+      adhar_number,
+      pan_number,
+      address,
     } = req.body;
+
+    if (!userId) {
+      return res.status(404).json({
+        status: "fail",
+        message: "User ID is required to proceed",
+        data:[]
+      });
+    }
 
     // 🔍 Check user
     const user = await User.findById(userId);
     if (!user) {
-      return res.status(404).json({
-        status: "fail",
-        message: "User not found",
+      return res.status(200).json({
+        status: "success",
+        message: "We couldn’t find this user. Please check the details and try again.",
+        data:[]
       });
-    }
+    }   
 
-    // ✏️ Update fields
+    // ✏️ Update normal fields
     if (first_name) user.first_name = first_name;
     if (last_name) user.last_name = last_name;
     if (phone_number) user.phone_number = phone_number;
+    if (address) user.address = address;
+    if (adhar_number) user.adhar_number = adhar_number;
+    if (pan_number) user.pan_number = pan_number;
 
     // 🖼️ Profile image update
     if (req.file) {
-      // delete old image if exists
       if (user.profile_image) {
         const oldPath = `uploads/profile_images/${user.profile_image}`;
         if (fs.existsSync(oldPath)) {
@@ -217,6 +231,10 @@ export const editProfile = async (req, res) => {
     }
 
     const updatedUser = await user.save();
+
+    // 🔒 Hide sensitive fields
+    // updatedUser.adhar_number = undefined;
+    // updatedUser.pan_number = undefined;
 
     return res.status(200).json({
       status: "success",

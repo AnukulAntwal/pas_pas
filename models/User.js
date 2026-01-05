@@ -48,6 +48,26 @@ const userSchema = new mongoose.Schema(
     type: String,
     default: null,
     },
+    adhar_number: {
+      type: String,
+      unique: true,
+      sparse: true,      // ✅ allows multiple null values
+      match: /^[0-9]{12}$/, // Aadhaar = 12 digits
+      default: null,
+    },
+    pan_number: {
+      type: String,
+      unique: true,
+      sparse: true,
+      uppercase: true,
+      match: /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, // PAN format
+      default: null,
+    },
+    address: {
+      type: String,
+      trim: true,
+      default: null,
+    },
     is_valid_adhar: {
       type: Number,
       enum: [0, 1],

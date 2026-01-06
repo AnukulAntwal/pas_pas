@@ -183,59 +183,110 @@ export const resetPassword = async (req, res) => {
 
 export const editProfile = async (req, res) => {
   try {
-    const { userId } = req.query; // later: req.user.id (JWT)
+    const { userId } = req.query;
+
+    if (!userId) {
+      return res.status(400).json({
+        status: "fail",
+        message: "User ID is required to proceed",
+        data: [],
+      });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        status: "fail",
+        message: "We couldn’t find this user. Please try again.",
+        data: [],
+      });
+    }
 
     const {
       first_name,
       last_name,
+      email,
       phone_number,
-      adhar_number,
+      aadhar_number,
       pan_number,
       address,
+      city,
+      state,
+      pincode,
     } = req.body;
 
-    if (!userId) {
-      return res.status(404).json({
-        status: "fail",
-        message: "User ID is required to proceed",
-        data:[]
-      });
+    // 📧 Email uniqueness check
+    if (email && email !== user.email) {
+      const emailExists = await User.findOne({ email });
+      if (emailExists) {
+        return res.status(409).json({
+          status: "fail",
+          message: "This email address is already in use.",
+        });
+      }
+      user.email = email;
     }
 
-    // 🔍 Check user
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(200).json({
-        status: "success",
-        message: "We couldn’t find this user. Please check the details and try again.",
-        data:[]
-      });
-    }   
+    // 📞 Phone uniqueness check
+    if (phone_number && phone_number !== user.phone_number) {
+      const phoneExists = await User.findOne({ phone_number });
+      if (phoneExists) {
+        return res.status(409).json({
+          status: "fail",
+          message: "This phone number is already in use.",
+        });
+      }
+      user.phone_number = phone_number;
+    }
 
-    // ✏️ Update normal fields
+    // 🆔 Aadhaar uniqueness check
+    if (aadhar_number && aadhar_number !== user.aadhar_number) {
+      const adharExists = await User.findOne({ aadhar_number });
+      if (adharExists) {
+        return res.status(409).json({
+          status: "fail",
+          message: "This Aadhaar number is already in use.",
+        });
+      }
+      user.aadhar_number = aadhar_number;
+    }
+
+    // 🪪 PAN uniqueness check
+    if (pan_number && pan_number !== user.pan_number) {
+      const panExists = await User.findOne({ pan_number });
+      if (panExists) {
+        return res.status(409).json({
+          status: "fail",
+          message: "This PAN number is already in use.",
+        });
+      }
+      user.pan_number = pan_number;
+      user.is_valid_pan = 0;
+    }
+
+    // ✏️ Other fields
     if (first_name) user.first_name = first_name;
     if (last_name) user.last_name = last_name;
-    if (phone_number) user.phone_number = phone_number;
     if (address) user.address = address;
-    if (adhar_number) user.adhar_number = adhar_number;
-    if (pan_number) user.pan_number = pan_number;
+    if (city) user.city = city;
+    if (state) user.state = state;
+    if (pincode) user.pincode = pincode;
 
-    // 🖼️ Profile image update
+    // 🖼️ Profile image
     if (req.file) {
       if (user.profile_image) {
         const oldPath = `uploads/profile_images/${user.profile_image}`;
-        if (fs.existsSync(oldPath)) {
-          fs.unlinkSync(oldPath);
-        }
+        if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
       }
       user.profile_image = req.file.filename;
     }
 
     const updatedUser = await user.save();
 
-    // 🔒 Hide sensitive fields
-    // updatedUser.adhar_number = undefined;
-    // updatedUser.pan_number = undefined;
+    // 🔒 Hide sensitive data
+    updatedUser.password = undefined;
+    updatedUser.adhar_number = undefined;
+    updatedUser.pan_number = undefined;
 
     return res.status(200).json({
       status: "success",
@@ -250,6 +301,7 @@ export const editProfile = async (req, res) => {
     });
   }
 };
+
 
 export const getUserById = async (req, res) => {
   try {

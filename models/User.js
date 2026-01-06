@@ -48,7 +48,19 @@ const userSchema = new mongoose.Schema(
     type: String,
     default: null,
     },
-    adhar_number: {
+    pincode: {
+    type: Number,
+    default: null,
+    },
+    city: {
+    type: String,
+    default: null,
+    },
+    state: {
+    type: String,
+    default: null,
+    },
+    aadhar_number: {
       type: String,
       unique: true,
       sparse: true,      // ✅ allows multiple null values

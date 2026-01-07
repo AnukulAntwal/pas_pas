@@ -6,7 +6,7 @@ export default async function verifyCustomToken(req, res, next) {
   if (!token) {
     return res.status(403).json({
       status: "fail",
-      message:"No token provided",
+      message:"You don’t have access to this page. Please sign in first.",
       auth:false,
     });
   }

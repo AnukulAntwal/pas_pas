@@ -183,7 +183,7 @@ export const resetPassword = async (req, res) => {
 
 export const editProfile = async (req, res) => {
   try {
-    const user = req.user; // 🔐 logged-in user from token
+    const user = req.user; // 🔐 from token middleware
 
     if (!user) {
       return res.status(401).json({
@@ -205,14 +205,29 @@ export const editProfile = async (req, res) => {
       pincode,
     } = req.body;
 
+    /* ================= AADHAAR IMAGE VALIDATION ================= */
+
+  const aadharFront = req.files?.aadhar_front_image;
+  const aadharBack = req.files?.aadhar_back_image;
+
+  // Case 1: Only one image uploaded → ERROR
+  if (
+    (aadharFront && !aadharBack) ||
+    (!aadharFront && aadharBack)
+  ) {
+    return res.status(400).json({
+      status: "fail",
+      message: "Please upload both Aadhaar front and back images together.",
+    });
+  }
+
+  // Case 2: None uploaded → OK (do nothing)
+  // Case 3: Both uploaded → OK (continue)
+
     /* ================= EMAIL CHECK ================= */
     if (email && email !== user.email) {
-      const emailExists = await User.findOne({
-        email,
-        _id: { $ne: user._id },
-      });
-
-      if (emailExists) {
+      const exists = await User.findOne({ email, _id: { $ne: user._id } });
+      if (exists) {
         return res.status(409).json({
           status: "fail",
           message: "This email address is already in use.",
@@ -223,12 +238,8 @@ export const editProfile = async (req, res) => {
 
     /* ================= PHONE CHECK ================= */
     if (phone_number && phone_number !== user.phone_number) {
-      const phoneExists = await User.findOne({
-        phone_number,
-        _id: { $ne: user._id },
-      });
-
-      if (phoneExists) {
+      const exists = await User.findOne({ phone_number, _id: { $ne: user._id } });
+      if (exists) {
         return res.status(409).json({
           status: "fail",
           message: "This phone number is already in use.",
@@ -239,38 +250,37 @@ export const editProfile = async (req, res) => {
 
     /* ================= AADHAAR CHECK ================= */
     if (aadhar_number && aadhar_number !== user.aadhar_number) {
-      const adharExists = await User.findOne({
+      const exists = await User.findOne({
         aadhar_number,
         _id: { $ne: user._id },
       });
-
-      if (adharExists) {
+      if (exists) {
         return res.status(409).json({
           status: "fail",
           message: "This Aadhaar number is already in use.",
         });
       }
       user.aadhar_number = aadhar_number;
+      user.is_valid_adhar = 0; // reset verification
     }
 
     /* ================= PAN CHECK ================= */
     if (pan_number && pan_number !== user.pan_number) {
-      const panExists = await User.findOne({
+      const exists = await User.findOne({
         pan_number,
         _id: { $ne: user._id },
       });
-
-      if (panExists) {
+      if (exists) {
         return res.status(409).json({
           status: "fail",
           message: "This PAN number is already in use.",
         });
       }
       user.pan_number = pan_number;
-      user.is_valid_pan = 0;
+      user.is_valid_pan = 0; // reset verification
     }
 
-    /* ================= OTHER FIELDS ================= */
+    /* ================= BASIC FIELDS ================= */
     if (first_name) user.first_name = first_name;
     if (last_name) user.last_name = last_name;
     if (address) user.address = address;
@@ -279,25 +289,54 @@ export const editProfile = async (req, res) => {
     if (pincode) user.pincode = pincode;
 
     /* ================= PROFILE IMAGE ================= */
-    if (req.file) {
+    if (req.files?.profile_image) {
       if (user.profile_image) {
         const oldPath = `uploads/profile_images/${user.profile_image}`;
         if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
       }
-      user.profile_image = req.file.filename;
+      user.profile_image = req.files.profile_image[0].filename;
+    }
+
+    /* ================= PAN IMAGE ================= */
+    if (req.files?.pan_image) {
+      if (user.pan_image) {
+        const oldPath = `uploads/pan_images/${user.pan_image}`;
+        if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+      }
+      user.pan_image = req.files.pan_image[0].filename;
+      user.is_valid_pan = 0;
+    }
+
+    /* ================= AADHAAR IMAGES ================= */
+    if (req.files?.aadhar_front_image) {
+      if (user.aadhar_front_image) {
+        const oldPath = `uploads/aadhar_images/front/${user.aadhar_front_image}`;
+        if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+      }
+      user.aadhar_front_image = req.files.aadhar_front_image[0].filename;
+      user.is_valid_adhar = 0;
+    }
+
+    if (req.files?.aadhar_back_image) {
+      if (user.aadhar_back_image) {
+        const oldPath = `uploads/aadhar_images/back/${user.aadhar_back_image}`;
+        if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+      }
+      user.aadhar_back_image = req.files.aadhar_back_image[0].filename;
+      user.is_valid_adhar = 0;
     }
 
     const updatedUser = await user.save();
 
     /* ================= HIDE SENSITIVE ================= */
-    updatedUser.password = undefined;
-    updatedUser.aadhar_number = undefined;
-    updatedUser.pan_number = undefined;
-    updatedUser.token = undefined;
+    // updatedUser.password = undefined;
+    // updatedUser.token = undefined;
+    // updatedUser.aadhar_number = undefined;
+    // updatedUser.pan_number = undefined;
 
     return res.status(200).json({
       status: "success",
-      message: "Profile updated successfully",
+      message: "Profile updated successfully. Documents are under verification.",
       data: updatedUser,
     });
 
@@ -310,10 +349,9 @@ export const editProfile = async (req, res) => {
 };
 
 
-
 export const getMyProfile = async (req, res) => {
   try {
-    const user = req.user; // 👈 comes from verifyCustomToken
+    const user = req.user; // 👈 from verifyCustomToken
 
     if (!user) {
       return res.status(401).json({
@@ -323,17 +361,30 @@ export const getMyProfile = async (req, res) => {
     }
 
     const baseUrl = `${req.protocol}://${req.get("host")}`;
-
     const userObj = user.toObject();
 
-    // Profile image full URL
+    /* ================= PROFILE IMAGE ================= */
     if (userObj.profile_image) {
       userObj.profile_image = `${baseUrl}/uploads/profile_images/${userObj.profile_image}`;
     }
 
-    // 🔒 Hide sensitive fields
-    // delete userObj.password;
-    // delete userObj.token;
+    /* ================= PAN IMAGE ================= */
+    if (userObj.pan_image) {
+      userObj.pan_image = `${baseUrl}/uploads/pan_images/${userObj.pan_image}`;
+    }
+
+    /* ================= AADHAAR IMAGES ================= */
+    if (userObj.aadhar_front_image) {
+      userObj.aadhar_front_image = `${baseUrl}/uploads/aadhar_images/front/${userObj.aadhar_front_image}`;
+    }
+
+    if (userObj.aadhar_back_image) {
+      userObj.aadhar_back_image = `${baseUrl}/uploads/aadhar_images/back/${userObj.aadhar_back_image}`;
+    }
+
+    /* ================= HIDE SENSITIVE ================= */
+    delete userObj.password;
+    delete userObj.token;
     // delete userObj.aadhar_number;
     // delete userObj.pan_number;
 

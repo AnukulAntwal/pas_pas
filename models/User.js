@@ -80,14 +80,26 @@ const userSchema = new mongoose.Schema(
       trim: true,
       default: null,
     },
+    aadhar_front_image: {
+      type: String,
+      default: null,
+    },
+    aadhar_back_image: {
+      type: String,
+      default: null,
+    },
+    pan_image: {
+      type: String,
+      default: null,
+    },
     is_valid_adhar: {
       type: Number,
-      enum: [0, 1],
+      enum: [0, 1, 2],
       default: 0, // ✅ default 0
     },
     is_valid_pan: {
       type: Number,
-      enum: [0, 1],
+      enum: [0, 1, 2],
       default: 0, // ✅ default 0
     },
     resetPasswordToken: { type: String },

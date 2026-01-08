@@ -183,22 +183,12 @@ export const resetPassword = async (req, res) => {
 
 export const editProfile = async (req, res) => {
   try {
-    const { userId } = req.query;
+    const user = req.user; // 🔐 logged-in user from token
 
-    if (!userId) {
-      return res.status(400).json({
-        status: "fail",
-        message: "User ID is required to proceed",
-        data: [],
-      });
-    }
-
-    const user = await User.findById(userId);
     if (!user) {
-      return res.status(404).json({
+      return res.status(401).json({
         status: "fail",
-        message: "We couldn’t find this user. Please try again.",
-        data: [],
+        message: "Unauthorized. Please log in.",
       });
     }
 
@@ -215,9 +205,13 @@ export const editProfile = async (req, res) => {
       pincode,
     } = req.body;
 
-    // 📧 Email uniqueness check
+    /* ================= EMAIL CHECK ================= */
     if (email && email !== user.email) {
-      const emailExists = await User.findOne({ email });
+      const emailExists = await User.findOne({
+        email,
+        _id: { $ne: user._id },
+      });
+
       if (emailExists) {
         return res.status(409).json({
           status: "fail",
@@ -227,9 +221,13 @@ export const editProfile = async (req, res) => {
       user.email = email;
     }
 
-    // 📞 Phone uniqueness check
+    /* ================= PHONE CHECK ================= */
     if (phone_number && phone_number !== user.phone_number) {
-      const phoneExists = await User.findOne({ phone_number });
+      const phoneExists = await User.findOne({
+        phone_number,
+        _id: { $ne: user._id },
+      });
+
       if (phoneExists) {
         return res.status(409).json({
           status: "fail",
@@ -239,9 +237,13 @@ export const editProfile = async (req, res) => {
       user.phone_number = phone_number;
     }
 
-    // 🆔 Aadhaar uniqueness check
+    /* ================= AADHAAR CHECK ================= */
     if (aadhar_number && aadhar_number !== user.aadhar_number) {
-      const adharExists = await User.findOne({ aadhar_number });
+      const adharExists = await User.findOne({
+        aadhar_number,
+        _id: { $ne: user._id },
+      });
+
       if (adharExists) {
         return res.status(409).json({
           status: "fail",
@@ -251,9 +253,13 @@ export const editProfile = async (req, res) => {
       user.aadhar_number = aadhar_number;
     }
 
-    // 🪪 PAN uniqueness check
+    /* ================= PAN CHECK ================= */
     if (pan_number && pan_number !== user.pan_number) {
-      const panExists = await User.findOne({ pan_number });
+      const panExists = await User.findOne({
+        pan_number,
+        _id: { $ne: user._id },
+      });
+
       if (panExists) {
         return res.status(409).json({
           status: "fail",
@@ -264,7 +270,7 @@ export const editProfile = async (req, res) => {
       user.is_valid_pan = 0;
     }
 
-    // ✏️ Other fields
+    /* ================= OTHER FIELDS ================= */
     if (first_name) user.first_name = first_name;
     if (last_name) user.last_name = last_name;
     if (address) user.address = address;
@@ -272,7 +278,7 @@ export const editProfile = async (req, res) => {
     if (state) user.state = state;
     if (pincode) user.pincode = pincode;
 
-    // 🖼️ Profile image
+    /* ================= PROFILE IMAGE ================= */
     if (req.file) {
       if (user.profile_image) {
         const oldPath = `uploads/profile_images/${user.profile_image}`;
@@ -283,10 +289,11 @@ export const editProfile = async (req, res) => {
 
     const updatedUser = await user.save();
 
-    // 🔒 Hide sensitive data
+    /* ================= HIDE SENSITIVE ================= */
     updatedUser.password = undefined;
-    updatedUser.adhar_number = undefined;
+    updatedUser.aadhar_number = undefined;
     updatedUser.pan_number = undefined;
+    updatedUser.token = undefined;
 
     return res.status(200).json({
       status: "success",
@@ -303,35 +310,37 @@ export const editProfile = async (req, res) => {
 };
 
 
-export const getUserById = async (req, res) => {
+
+export const getMyProfile = async (req, res) => {
   try {
-    const { userId } = req.query; // OR req.params.userId
-
-    if (!userId) {
-      return res.status(400).json({
-        status: "fail",
-        message: "userId is required",
-      });
-    }
-
-    const user = await User.findById(userId).select("-password");;
-    const baseUrl = `${req.protocol}://${req.get("host")}`;
-
-    if (user?.profile_image) {
-      user.profile_image = `${baseUrl}/uploads/profile_images/${user.profile_image}`;
-    }
+    const user = req.user; // 👈 comes from verifyCustomToken
 
     if (!user) {
-      return res.status(404).json({
+      return res.status(401).json({
         status: "fail",
-        message: "User not found",
+        message: "Unauthorized. Please log in.",
       });
     }
+
+    const baseUrl = `${req.protocol}://${req.get("host")}`;
+
+    const userObj = user.toObject();
+
+    // Profile image full URL
+    if (userObj.profile_image) {
+      userObj.profile_image = `${baseUrl}/uploads/profile_images/${userObj.profile_image}`;
+    }
+
+    // 🔒 Hide sensitive fields
+    // delete userObj.password;
+    // delete userObj.token;
+    // delete userObj.aadhar_number;
+    // delete userObj.pan_number;
 
     return res.status(200).json({
       status: "success",
-      message: "User details fetched successfully",
-      data: user,
+      message: "Profile details retrieved successfully.",
+      data: userObj,
     });
 
   } catch (error) {

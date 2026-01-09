@@ -47,7 +47,10 @@ const deliveryServiceSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User"
     },
-
+    is_delivery_counted: {
+      type: Boolean,
+      default: false
+    },
     // ✅ CORRECT: TTL field for auto-deletion
     expiresAt: {
       type: Date,

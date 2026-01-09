@@ -102,6 +102,10 @@ const userSchema = new mongoose.Schema(
       enum: [0, 1, 2],
       default: 0, // ✅ default 0
     },
+    no_of_delivery: {
+      type: Number,
+      default: 0
+    },
     resetPasswordToken: { type: String },
     resetPasswordExpire: { type: Date },    
   },  

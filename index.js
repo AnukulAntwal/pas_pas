@@ -7,6 +7,7 @@ import http from "http";
 import initSocket from "./socketServer.js";
 import path from "path";
 import { fileURLToPath } from "url";
+import "./cron/deliveryCron.js"; // 👈 THIS LINE IS MUST
 
 dotenv.config();
 

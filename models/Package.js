@@ -58,7 +58,6 @@ const packageSchema = new mongoose.Schema(
     // ✅ TTL field for auto-deletion
     expiresAt: {
       type: Date,
-      required: true,
       // TTL index will be created separately
     },
   },

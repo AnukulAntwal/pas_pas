@@ -85,16 +85,15 @@ deliveryServiceSchema.path("updatedAt").get(function (date) {
 });
 
 // ✅ Pre-save hook: Calculate expiresAt = date_time + 15 days
-deliveryServiceSchema.pre("save", function (next) {
-  // Only calculate if this is a new document OR if date_time changed
-  if (this.isNew || this.isModified("date_time")) {
-    // Calculate expiry: date_time + 15 days
+deliveryServiceSchema.pre("validate", function (next) {
+  if (!this.expiresAt && this.date_time) {
     const expiryDate = new Date(this.date_time);
     expiryDate.setDate(expiryDate.getDate() + 15);
     this.expiresAt = expiryDate;
   }
   next();
 });
+
 
 const DeliveryService = mongoose.model("DeliveryService", deliveryServiceSchema);
 export default DeliveryService;

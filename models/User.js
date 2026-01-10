@@ -106,6 +106,11 @@ const userSchema = new mongoose.Schema(
       type: Number,
       default: 0
     },
+    is_blocked: {
+      type: Number,
+      enum: [0, 1],
+      default: 0, // ✅ default 0
+    },
     resetPasswordToken: { type: String },
     resetPasswordExpire: { type: Date },    
   },  

@@ -69,18 +69,35 @@ export const getUserById = async (req, res) => {
   }
 };
 
-export const updateUser = async (req, res) => {
+export const getDashboardStats = async (req, res) => {
   try {
-    const updatedUser = await User.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true }
-    );
-    if (!updatedUser) {
-      return res.status(404).json({ message: "User not found" });
-    }
-    res.status(200).json(updatedUser);
-  } catch (error) {
-    res.status(500).json({ message: "Server Error", error: error.message });
+    // Count promises (run in parallel)
+    const totalUsersPromise = User.countDocuments({});
+    const activeUsersPromise = User.countDocuments({ is_blocked: 0 });
+
+    // Pending verifications: either aadhar or pan not validated (value 0)
+    const pendingVerificationsPromise = User.countDocuments({
+      $or: [{ is_valid_adhar: 0 }, { is_valid_pan: 0 }]
+    });
+
+    // New users today (server local timezone)
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const newUsersTodayPromise = User.countDocuments({ createdAt: { $gte: startOfDay } });
+
+    const [totalUsers, activeUsers, pendingVerifications, newUsersToday] = await Promise.all([
+      totalUsersPromise,
+      activeUsersPromise,
+      pendingVerificationsPromise,
+      newUsersTodayPromise,
+    ]);
+
+    return res.status(200).json({
+      success: true,
+      data: { totalUsers, activeUsers, pendingVerifications, newUsersToday },
+    });
+  } catch (err) {
+    console.error('getDashboardStats error:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
   }
 };

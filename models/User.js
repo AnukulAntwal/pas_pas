@@ -111,6 +111,14 @@ const userSchema = new mongoose.Schema(
       enum: [0, 1],
       default: 0, // ✅ default 0
     },
+    rating_avg: {
+  type: Number,
+  default: 0
+},
+rating_count: {
+  type: Number,
+  default: 0
+},
     resetPasswordToken: { type: String },
     resetPasswordExpire: { type: Date },    
   },  

@@ -1,7 +1,8 @@
 import User from "../models/User.js";
 export const getUsers = async (req, res) => {
   try {
-    const users = await User.find();
+    const users = await User.find().sort({ createdAt: -1 });
+    ;
     const baseUrl = `${req.protocol}://${req.get("host")}`;
     const processedUsers = users.map((user) => {
       const userObj = user.toObject();

@@ -57,7 +57,7 @@ export const loginController = async (req, res) => {
     }
 
     // ✅ Step 2.1: Check if user is blocked
-    if (user.is_blocked === 2) {
+    if (user.is_blocked === 1) {
       return res.status(403).json({
         status: "fail",
         message:

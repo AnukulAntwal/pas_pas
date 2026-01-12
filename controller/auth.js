@@ -49,23 +49,41 @@ export const loginController = async (req, res) => {
     // Step 2: Find user
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(401).json({ status: "fail", message: "Invalid email or password", data: [] });
+      return res.status(401).json({
+        status: "fail",
+        message: "Invalid email or password",
+        data: []
+      });
+    }
+
+    // ✅ Step 2.1: Check if user is blocked
+    if (user.is_blocked === 2) {
+      return res.status(403).json({
+        status: "fail",
+        message:
+          "Your account has been blocked by the PASPAS organization because it has not been verified. Please contact support for assistance.",
+        data: []
+      });
     }
 
     // Step 3: Compare password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(401).json({ status: "fail", message: "Invalid email or password", data: [] });
+      return res.status(401).json({
+        status: "fail",
+        message: "Invalid email or password",
+        data: []
+      });
     }
 
-    // Step 4: Generate random token (32 bytes = 64-char hex string)
+    // Step 4: Generate random token
     const token = crypto.randomBytes(32).toString("hex");
 
     // Step 5: Update user record
     user.device_type = device_type;
     user.device_token = device_token;
     user.last_login = new Date();
-    user.token = token; // ✅ save random token
+    user.token = token;
 
     const userSave = await user.save();
 
@@ -73,18 +91,24 @@ export const loginController = async (req, res) => {
     return res.status(200).json({
       status: "success",
       message: "Login successful",
-      data: userSave,
+      data: userSave
     });
+
   } catch (e) {
-    return res.status(500).json({ status: "fail", message: e.message,data: [] });
+    return res.status(500).json({
+      status: "fail",
+      message: e.message,
+      data: []
+    });
   }
 };
+
 
 export const registerController = async (req, res) => {
   
   const { error } = registerValidate.validate(req.body);
   if (error)
-    return res.status(400).json({ error: error.details[0].message });
+    return res.status(400).json({ status: "fail", message: error.details[0].message, data: [] });
 
   try {
     const {first_name,last_name,phone_number,email,password}=req.body

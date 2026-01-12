@@ -34,6 +34,8 @@ export default async function verifyCustomToken(req, res, next) {
     return res.status(500).json({
       status: "fail",
       message: "Authentication failed. Please try again.",
+      auth: false
+
     });
   }
 }

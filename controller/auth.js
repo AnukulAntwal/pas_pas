@@ -49,13 +49,13 @@ export const loginController = async (req, res) => {
     // Step 2: Find user
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(401).json({ error: "Invalid email or password" });
+      return res.status(401).json({ status: "fail", message: "Invalid email or password", data: [] });
     }
 
     // Step 3: Compare password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(401).json({ error: "Invalid email or password" });
+      return res.status(401).json({ status: "fail", message: "Invalid email or password", data: [] });
     }
 
     // Step 4: Generate random token (32 bytes = 64-char hex string)
@@ -94,7 +94,7 @@ export const registerController = async (req, res) => {
     if (existingUser) {
       return res
         .status(409)
-        .json({ error: "User already exists with this email" });
+        .json({ status: "fail", message: "User already exists with this email", data: [] });
     }
 
     let profileImage = null;
@@ -189,6 +189,7 @@ export const editProfile = async (req, res) => {
       return res.status(401).json({
         status: "fail",
         message: "Unauthorized. Please log in.",
+        data: []
       });
     }
 
@@ -218,6 +219,7 @@ export const editProfile = async (req, res) => {
     return res.status(400).json({
       status: "fail",
       message: "Please upload both Aadhaar front and back images together.",
+      data: []
     });
   }
 
@@ -231,6 +233,7 @@ export const editProfile = async (req, res) => {
         return res.status(409).json({
           status: "fail",
           message: "This email address is already in use.",
+          data: []
         });
       }
       user.email = email;
@@ -243,6 +246,7 @@ export const editProfile = async (req, res) => {
         return res.status(409).json({
           status: "fail",
           message: "This phone number is already in use.",
+          data: []
         });
       }
       user.phone_number = phone_number;
@@ -258,6 +262,7 @@ export const editProfile = async (req, res) => {
         return res.status(409).json({
           status: "fail",
           message: "This Aadhaar number is already in use.",
+          data: []
         });
       }
       user.aadhar_number = aadhar_number;
@@ -274,6 +279,7 @@ export const editProfile = async (req, res) => {
         return res.status(409).json({
           status: "fail",
           message: "This PAN number is already in use.",
+          data: []
         });
       }
       user.pan_number = pan_number;

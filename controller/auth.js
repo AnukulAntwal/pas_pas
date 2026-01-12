@@ -76,7 +76,7 @@ export const loginController = async (req, res) => {
       data: userSave,
     });
   } catch (e) {
-    return res.status(500).json({ status: "fail", error: e.message });
+    return res.status(500).json({ status: "fail", message: e.message,data: [] });
   }
 };
 

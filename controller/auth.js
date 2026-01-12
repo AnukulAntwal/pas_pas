@@ -56,7 +56,6 @@ export const loginController = async (req, res) => {
       });
     }
 
-    // ✅ Step 2.1: Check if user is blocked
   
 
     // Step 3: Compare password
@@ -68,12 +67,13 @@ export const loginController = async (req, res) => {
         data: []
       });
     }
+    // ✅ Step 2.1: Check if user is blocked
 
     if (user.is_blocked === 1) {
       return res.status(403).json({
         status: "fail",
         message:
-          "Your account has been blocked by the PASPAS organization because it has not been verified. Please contact support for assistance.",
+          "Your account has been blocked due to unverified documents. Please contact paspaspackage@gmail.com",
         data: []
       });
     }

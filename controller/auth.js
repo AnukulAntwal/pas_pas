@@ -57,14 +57,7 @@ export const loginController = async (req, res) => {
     }
 
     // ✅ Step 2.1: Check if user is blocked
-    if (user.is_blocked === 1) {
-      return res.status(403).json({
-        status: "fail",
-        message:
-          "Your account has been blocked by the PASPAS organization because it has not been verified. Please contact support for assistance.",
-        data: []
-      });
-    }
+  
 
     // Step 3: Compare password
     const isMatch = await bcrypt.compare(password, user.password);
@@ -76,6 +69,14 @@ export const loginController = async (req, res) => {
       });
     }
 
+    if (user.is_blocked === 1) {
+      return res.status(403).json({
+        status: "fail",
+        message:
+          "Your account has been blocked by the PASPAS organization because it has not been verified. Please contact support for assistance.",
+        data: []
+      });
+    }
     // Step 4: Generate random token
     const token = crypto.randomBytes(32).toString("hex");
 

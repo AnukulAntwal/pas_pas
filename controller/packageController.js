@@ -93,7 +93,7 @@ export const getPackages = async (req, res) => {
         }
       ]
     })
-    .populate("uid", "first_name last_name phone_number")
+    .populate("uid", "first_name last_name phone_number").populate('booked_by', 'first_name last_name')
     .select("-route_path")
     .sort({ date_time: 1 });
 

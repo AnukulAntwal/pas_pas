@@ -1,9 +1,11 @@
 import express from "express";
-import { bookOrCancel, getMyBookings, getMyPublished, updateDeliveryService, updatePackage } from "../../controller/bookingController.js";
+import { bookServiceOrPackage, cancelBookingByReference, getMyBookings, getMyPublished, updateDeliveryService, updatePackage } from "../../controller/bookingController.js";
 
 const router = express.Router();
 
-router.post("/BookOrCancel", bookOrCancel);
+router.post("/transportOrParcel", bookServiceOrPackage);
+router.post("/cancelTransportOrParcel", cancelBookingByReference);
+
 router.get("/getMyBookings", getMyBookings);
 router.get("/getMyPublications", getMyPublished);
 router.post('/editUpdatePackage',updatePackage)

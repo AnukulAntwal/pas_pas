@@ -6,287 +6,559 @@ import axios from "axios";
 import DeliveryService from "../models/DeliveryService.js";
 import { getNextConversationId } from "../utils/getNextId.js";
 import Notification from "../models/Notification.js";
+import Booking from "../models/Booking.js";
+
 import moment from "moment";
 dotenv.config();
 
-export const bookOrCancel = async (req, res) => {
+export const bookServiceOrPackage = async (req, res) => {
   try {
-    const {
-      reference_id,
-      user_id,
-      type,
-      is_available,
-      message,
-      cancel_reason,
-    } = req.body;
+    const { reference_id, type } = req.body;
+    const userId = req.user._id;
 
-      if ([reference_id, user_id, type, is_available].some(v => v === undefined)) {
-      return res.status(400).json({
-        status: "fail",
-        message: "Missing required fields (reference_id, user_id, type, is_available)",
-        data: [],
-      });
+    if (!reference_id || type === undefined) {
+      return res.status(400).json({ status:"fail", message: "reference_id and type required", data: [] });
     }
 
-  let bookedFor;
-      if(type === 0){
-        bookedFor = 'package';
-      }else{
-        bookedFor = 'ride';
-      }
-    // ✅ Select model based on type
-    let Model;
-    if (type === 0) Model = Package;
-    else if (type === 1) Model = DeliveryService;
-    else {
-      return res.status(400).json({
-        status: "fail",
-        message: "Invalid type (must be package or service)",
-        data: [],
-      });
+    // 🔍 check already booked
+    let booking = await Booking.findOne({ reference_id });
+
+    if (booking && booking.is_booked === 1) {
+      return res.status(200).json({ status:"success", message: "Already booked", data: [] });
     }
-
-    // ✅ Fetch record
-    const record = await Model.findById(reference_id);
-    if (!record) {
-      return res.status(404).json({
-        status: "fail",
-        message: `${bookedFor} not found`,
-        data: [],
-      });
-    }
-
-    let chatResponse = null;
-
-    // ✅ BOOKING LOGIC
-    if (is_available === 0) {
-      if (record.is_available === 0) {
-        return res.status(400).json({
-          status: "fail",
-          message: "Already booked by another user",
-          data: [],
-        });
-      }
-
-      record.booking_type = "Booked";
-      record.is_available = 0;
-      record.booked_by = user_id;
-
-      // 🟢 Create chat only if message provided
-      if (message && message.trim() !== "") {
-        const receiver_id =
-          record.uid?.toString() === user_id.toString()
-            ? record.booked_by
-            : record.uid;
-
-        if (receiver_id) {
-          const conversation_id = await getNextConversationId();
-
-          // Create Chat
-          await Chat.create({
-            conversation_id,
-            conversation_for: type,
-            reference_id,
-            sender_id: user_id,
-            receiver_id,
-            message,
-            unread_count: 1,
-            is_read: 0,
-          });
-
-          // Create Notification
-          await Notification.create({
-            sender_id: user_id,
-            receiver_id,
-            conversation_id,
-            reference_id,
-            message_text: message,
-            type: "message",
-          });
-
-          // 🧩 Fetch contact details
-          const receiver = await User.findById(receiver_id)
-            .select("first_name last_name phone_number")
-            .lean();
-
-          // 🧩 Fetch conversation logs
-          const allChats = await Chat.find({ conversation_id })
-            .sort({ createdAt: -1 })
-            .lean();
-
-          const conversation_log = allChats.map((c) => ({
-            conversation: c.message,
-            conversation_date: moment(c.createdAt).format(
-              "YYYY-MM-DD HH:mm:ss"
-            ),
-            conversation_id: c.conversation_id,
-            direction:
-              c.sender_id.toString() === user_id.toString()
-                ? "outbound"
-                : "inbound",
-            is_read: c.is_read,
-          }));
-
-          // 🧩 Build formatted Chat object
-          chatResponse = {
-            contact_details: {
-              id: receiver._id,
-              user_name: `${receiver.first_name || ""} ${
-                receiver.last_name || ""
-              }`.trim(),
-              contact_number: receiver.phone_number || "",
-              reference_id: record._id,
-            },
-            reference_details: {
-              _id: record._id,
-              reference_id: record._id,
-              reference_type: type,
-              pickup_location:
-                record.pickup_location || record.start_location || "",
-              drop_location:
-                record.drop_location || record.end_location || "",
-              price: record.price || "",
-            },
-            conversation_log,
-          };
-        }
-      }
-    }
-
-    // 🔴 CANCELLATION LOGIC
-    else if (is_available === 1) {
-      if (record.booked_by?.toString() !== user_id.toString()) {
-        return res.status(403).json({
-          status: "fail",
-          message: "You can only cancel your own booking",
-          data: [],
-        });
-      }
-
-      record.booking_type = "Cancelled";
-      record.is_available = 1;
-      record.booked_by = null;
-
-      // Only update reason (no chat creation)
-      if (cancel_reason && cancel_reason.trim() !== "") {
-        record.cancel_reason = cancel_reason;
-      }
-    }
-
-    await record.save();
-
-    // ✅ Fetch user details
-    const user = await User.findById(user_id)
-      .select("first_name last_name phone_number")
-      .lean();
-
-    // ✅ Fetch reference details
-    const referenceDetails = await Model.findById(reference_id)
-      .select(
-        type === 0
-          ? "start_location end_location date_time price"
-          : "pickup_address delivery_address package_type weight price"
-      )
-      .lean();
-    
-    // ✅ Final Response
-    return res.status(200).json({
-      status: "success",
-      message:
-        is_available === 0
-          ? `${bookedFor} booked successfully`
-          : `${bookedFor} booking cancelled successfully`,
-      data: {
-        reference_id: record._id,
+    let cancel_reason="";
+    if (!booking) {
+      booking = new Booking({
+        reference_id,
         type,
-        booking_type: record.booking_type,
-        is_available: record.is_available,
-        cancel_reason: record.cancel_reason || null,
-        booked_by: user || null,
-        reference_details: referenceDetails || null,
-        Chat: chatResponse || null,
-      },
+        is_booked: 1,
+        status: 1,
+        booking_type: "Booked",
+        booked_by: userId
+      });
+    } else {
+      booking.is_booked = 1;
+      booking.status = 1;
+      booking.booking_type = "Booked";
+      booking.booked_by = userId;
+      booking.cancel_reason = cancel_reason;
+    }
+
+    await booking.save();
+
+    /* =========================
+       CHAT + NOTIFICATION
+    ========================= */
+
+    // 🔎 get reference owner (receiver)
+    let referenceData;
+    if (type === 0) {
+      referenceData = await DeliveryService.findById(reference_id).select("uid");
+    } else {
+      referenceData = await Package.findById(reference_id).select("uid");
+    }
+
+    const receiverId = referenceData?.uid;
+
+    if (receiverId) {
+      const conversation_id = await getNextConversationId();
+
+      // 💬 CHAT (default message)
+      await Chat.create({
+        conversation_id,
+        conversation_for: type,
+        reference_id,
+        sender_id: userId,
+        receiver_id: receiverId,
+        message: "Your service has been booked successfully",
+        unread_count: 1,
+        is_read: 0
+      });
+
+      // 🔔 NOTIFICATION
+      await Notification.create({
+        sender_id: userId,
+        receiver_id: receiverId,
+        conversation_id,
+        reference_id,
+        message_text: "Your service has been booked",
+        type: "message"
+      });
+    }
+
+    return res.status(200).json({
+      status:"success",
+      message: "Booked successfully",
+      data: booking
     });
-  } catch (error) {
-    console.error("Booking error:", error);
-    return res.status(500).json({
-      status: "fail",
-      message: error.message,
-      data: [],
-    });
+
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
   }
 };
 
+export const cancelBookingByReference = async (req, res) => {
+  try {
+    const { reference_id, cancel_reason } = req.body;
+    const userId = req.user._id;
+
+    if (!reference_id) {
+      return res.status(400).json({ status:"fail", message: "reference_id required", data: [] });
+    }
+
+    // 🔍 Find booking by reference_id
+    const booking = await Booking.findOne({ reference_id });
+
+    if (!booking) {
+      return res.status(200).json({ status:"success", message: "Booking not found", data: [] });
+    }
+
+    // ❌ User can cancel only own booking
+    if (booking.booked_by.toString() !== userId.toString()) {
+      return res.status(200).json({
+        status:"success", 
+        message: "You can cancel only your own booking",
+        data: []
+      });
+    }
+
+    // ❌ Already cancelled
+    if (booking.is_booked === 0) {
+      return res.status(200).json({ status:"success", message: "Booking already cancelled", data: [] });
+    }
+
+    // 🔄 Update booking
+    booking.is_booked = 0;
+    booking.status = 0;
+    booking.booking_type = "Cancelled";
+    booking.cancel_reason = cancel_reason || "";
+
+    await booking.save();
+
+    /* =========================
+       NOTIFICATION ONLY
+    ========================= */
+
+    let referenceData;
+    if (booking.type === 0) {
+      referenceData = await DeliveryService
+        .findById(reference_id)
+        .select("uid");
+    } else {
+      referenceData = await Package
+        .findById(reference_id)
+        .select("uid");
+    }
+
+    const receiverId = referenceData?.uid;
+      const conversation_id = await getNextConversationId();
+
+    if (receiverId) {
+      await Notification.create({
+        sender_id: userId,
+        receiver_id: receiverId,
+        conversation_id: conversation_id,
+        reference_id: booking._id,
+        message_text: "Booking has been cancelled",
+        type: "message"
+      });
+    }
+
+    return res.status(200).json({
+      status:"success",
+      message: "Booking cancelled successfully",
+      data: booking
+    });
+
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+};
 
 export const getMyBookings = async (req, res) => {
   try {
-    const { user_id } = req.query;
+    const userId = req.user._id;
 
-    if (!user_id) {
-      return res.status(400).json({
-        status: "fail",
-        message: "user_id is required",
-        data: [],
+    const bookings = await Booking.find({
+      booked_by: userId,
+      is_booked: 1
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    if (!bookings.length) {
+      return res.status(200).json({
+        status: "success",
+        message: "No bookings found",
+        data: []
       });
     }
 
-    // ⏰ Current time → Next 24 hours
-    const startOfDay = moment().startOf("day").toDate();
-    const next24Hours = moment().add(24, "hours");
+    const result = [];
 
-    // ✅ Fetch packages booked in next 24 hours
-    const packageBookings = await Package.find({
-      booked_by: user_id,
-      booking_type: "Booked",
-      updatedAt: { $gte:startOfDay, $lte: next24Hours.toDate() },
-    })
-      .sort({ updatedAt: -1 })
-      .lean();
+    for (const booking of bookings) {
 
-    // ✅ Fetch delivery services booked in next 24 hours
-    const serviceBookings = await DeliveryService.find({
-      booked_by: user_id,
-      booking_type: "Booked",
-      updatedAt: { $gte: startOfDay, $lte: next24Hours.toDate() },
-    })
-      .sort({ updatedAt: -1 })
-      .lean();
+      // 🔹 booked_by user
+      const bookedByUser = await User.findById(booking.booked_by)
+        .select("first_name last_name phone_number email")
+        .lean();
 
-    // 🧩 Merge and format both
-    const allBookings = [...packageBookings, ...serviceBookings].map((item) => ({
-      _id: item._id,
-      type: item.pickup_location ? 0 : 1,
-      booking_type: item.booking_type,
-      is_available: item.is_available,
-      cancel_reason: item.cancel_reason || null,
-      pickup_location: item.pickup_location || item.start_location || "",
-      drop_location: item.drop_location || item.end_location || "",
-      price: item.price || 0,
-      booked_at: moment(item.updatedAt).format("YYYY-MM-DD HH:mm:ss"),
-    }));
+      let referenceOwner = null;
+      let referenceDetails = null;
 
-    if (allBookings.length === 0) {
-      return res.status(200).json({
-        status: "success",
-        message: "No bookings found in the next 24 hours",
-        data: [],
+      // =========================
+      // DELIVERY SERVICE
+      // =========================
+      if (booking.type === 0) {
+        const service = await DeliveryService.findById(booking.reference_id)
+          .select("uid start_location end_location price date_time")
+          .lean();
+
+        if (service) {
+          referenceOwner = await User.findById(service.uid)
+            .select("first_name last_name phone_number email")
+            .lean();
+
+          referenceDetails = {
+            start_location: service.start_location,
+            end_location: service.end_location,
+            price: service.price,
+            date_time: service.date_time
+          };
+        }
+      }
+
+      // =========================
+      // PACKAGE
+      // =========================
+      if (booking.type === 1) {
+        const parcel = await Package.findById(booking.reference_id)
+          .select("uid pickup_location drop_location price date_time")
+          .lean();
+
+        if (parcel) {
+          referenceOwner = await User.findById(parcel.uid)
+            .select("first_name last_name phone_number email")
+            .lean();
+
+          referenceDetails = {
+            pickup_location: parcel.pickup_location,
+            drop_location: parcel.drop_location,
+            price: parcel.price,
+            date_time: parcel.date_time
+          };
+        }
+      }
+
+      result.push({
+        booking_id: booking._id,
+        reference_id: booking.reference_id,
+        type: booking.type,
+        booking_type: booking.booking_type,
+        is_booked: booking.is_booked,
+        status: booking.status,
+        cancel_reason: booking.cancel_reason || "",
+        booked_by: bookedByUser,
+        reference_owner: referenceOwner,
+        reference_details: referenceDetails,
+        created_at: moment(booking.createdAt).format("YYYY-MM-DD HH:mm:ss")
       });
     }
 
     return res.status(200).json({
       status: "success",
-      message: "Bookings are retrieved successfully",
-      data: allBookings,
+      message: "Bookings fetched successfully",
+      data: result
     });
+
   } catch (error) {
-    console.error("Error in getMyBookings:", error);
     return res.status(500).json({
       status: "fail",
       message: error.message,
-      data: [],
+      data: []
     });
   }
 };
+
+
+// export const bookOrCancel = async (req, res) => {
+//   try {
+//     const {
+//       reference_id,
+//       user_id,
+//       type,
+//       is_available,
+//       message,
+//       cancel_reason,
+//     } = req.body;
+
+//       if ([reference_id, user_id, type, is_available].some(v => v === undefined)) {
+//       return res.status(400).json({
+//         status: "fail",
+//         message: "Missing required fields (reference_id, user_id, type, is_available)",
+//         data: [],
+//       });
+//     }
+
+//   let bookedFor;
+//       if(type === 0){
+//         bookedFor = 'package';
+//       }else{
+//         bookedFor = 'ride';
+//       }
+//     // ✅ Select model based on type
+//     let Model;
+//     if (type === 0) Model = Package;
+//     else if (type === 1) Model = DeliveryService;
+//     else {
+//       return res.status(400).json({
+//         status: "fail",
+//         message: "Invalid type (must be package or service)",
+//         data: [],
+//       });
+//     }
+
+//     // ✅ Fetch record
+//     const record = await Model.findById(reference_id);
+//     if (!record) {
+//       return res.status(404).json({
+//         status: "fail",
+//         message: `${bookedFor} not found`,
+//         data: [],
+//       });
+//     }
+
+//     let chatResponse = null;
+
+//     // ✅ BOOKING LOGIC
+//     if (is_available === 0) {
+//       if (record.is_available === 0) {
+//         return res.status(400).json({
+//           status: "fail",
+//           message: "Already booked by another user",
+//           data: [],
+//         });
+//       }
+
+//       record.booking_type = "Booked";
+//       record.is_available = 0;
+//       record.booked_by = user_id;
+
+//       // 🟢 Create chat only if message provided
+//       if (message && message.trim() !== "") {
+//         const receiver_id =
+//           record.uid?.toString() === user_id.toString()
+//             ? record.booked_by
+//             : record.uid;
+
+//         if (receiver_id) {
+//           const conversation_id = await getNextConversationId();
+
+//           // Create Chat
+//           await Chat.create({
+//             conversation_id,
+//             conversation_for: type,
+//             reference_id,
+//             sender_id: user_id,
+//             receiver_id,
+//             message,
+//             unread_count: 1,
+//             is_read: 0,
+//           });
+
+//           // Create Notification
+//           await Notification.create({
+//             sender_id: user_id,
+//             receiver_id,
+//             conversation_id,
+//             reference_id,
+//             message_text: message,
+//             type: "message",
+//           });
+
+//           // 🧩 Fetch contact details
+//           const receiver = await User.findById(receiver_id)
+//             .select("first_name last_name phone_number")
+//             .lean();
+
+//           // 🧩 Fetch conversation logs
+//           const allChats = await Chat.find({ conversation_id })
+//             .sort({ createdAt: -1 })
+//             .lean();
+
+//           const conversation_log = allChats.map((c) => ({
+//             conversation: c.message,
+//             conversation_date: moment(c.createdAt).format(
+//               "YYYY-MM-DD HH:mm:ss"
+//             ),
+//             conversation_id: c.conversation_id,
+//             direction:
+//               c.sender_id.toString() === user_id.toString()
+//                 ? "outbound"
+//                 : "inbound",
+//             is_read: c.is_read,
+//           }));
+
+//           // 🧩 Build formatted Chat object
+//           chatResponse = {
+//             contact_details: {
+//               id: receiver._id,
+//               user_name: `${receiver.first_name || ""} ${
+//                 receiver.last_name || ""
+//               }`.trim(),
+//               contact_number: receiver.phone_number || "",
+//               reference_id: record._id,
+//             },
+//             reference_details: {
+//               _id: record._id,
+//               reference_id: record._id,
+//               reference_type: type,
+//               pickup_location:
+//                 record.pickup_location || record.start_location || "",
+//               drop_location:
+//                 record.drop_location || record.end_location || "",
+//               price: record.price || "",
+//             },
+//             conversation_log,
+//           };
+//         }
+//       }
+//     }
+
+//     // 🔴 CANCELLATION LOGIC
+//     else if (is_available === 1) {
+//       if (record.booked_by?.toString() !== user_id.toString()) {
+//         return res.status(403).json({
+//           status: "fail",
+//           message: "You can only cancel your own booking",
+//           data: [],
+//         });
+//       }
+
+//       record.booking_type = "Cancelled";
+//       record.is_available = 1;
+//       record.booked_by = null;
+
+//       // Only update reason (no chat creation)
+//       if (cancel_reason && cancel_reason.trim() !== "") {
+//         record.cancel_reason = cancel_reason;
+//       }
+//     }
+
+//     await record.save();
+
+//     // ✅ Fetch user details
+//     const user = await User.findById(user_id)
+//       .select("first_name last_name phone_number")
+//       .lean();
+
+//     // ✅ Fetch reference details
+//     const referenceDetails = await Model.findById(reference_id)
+//       .select(
+//         type === 0
+//           ? "start_location end_location date_time price"
+//           : "pickup_address delivery_address package_type weight price"
+//       )
+//       .lean();
+    
+//     // ✅ Final Response
+//     return res.status(200).json({
+//       status: "success",
+//       message:
+//         is_available === 0
+//           ? `${bookedFor} booked successfully`
+//           : `${bookedFor} booking cancelled successfully`,
+//       data: {
+//         reference_id: record._id,
+//         type,
+//         booking_type: record.booking_type,
+//         is_available: record.is_available,
+//         cancel_reason: record.cancel_reason || null,
+//         booked_by: user || null,
+//         reference_details: referenceDetails || null,
+//         Chat: chatResponse || null,
+//       },
+//     });
+//   } catch (error) {
+//     console.error("Booking error:", error);
+//     return res.status(500).json({
+//       status: "fail",
+//       message: error.message,
+//       data: [],
+//     });
+//   }
+// };
+
+
+// export const getMyBookings = async (req, res) => {
+//   try {
+//     const { user_id } = req.query;
+
+//     if (!user_id) {
+//       return res.status(400).json({
+//         status: "fail",
+//         message: "user_id is required",
+//         data: [],
+//       });
+//     }
+
+//     // ⏰ Current time → Next 24 hours
+//     const startOfDay = moment().startOf("day").toDate();
+//     const next24Hours = moment().add(24, "hours");
+
+//     // ✅ Fetch packages booked in next 24 hours
+//     const packageBookings = await Package.find({
+//       booked_by: user_id,
+//       booking_type: "Booked",
+//       updatedAt: { $gte:startOfDay, $lte: next24Hours.toDate() },
+//     })
+//       .sort({ updatedAt: -1 })
+//       .lean();
+
+//     // ✅ Fetch delivery services booked in next 24 hours
+//     const serviceBookings = await DeliveryService.find({
+//       booked_by: user_id,
+//       booking_type: "Booked",
+//       updatedAt: { $gte: startOfDay, $lte: next24Hours.toDate() },
+//     })
+//       .sort({ updatedAt: -1 })
+//       .lean();
+
+//     // 🧩 Merge and format both
+//     const allBookings = [...packageBookings, ...serviceBookings].map((item) => ({
+//       _id: item._id,
+//       type: item.pickup_location ? 0 : 1,
+//       booking_type: item.booking_type,
+//       is_available: item.is_available,
+//       cancel_reason: item.cancel_reason || null,
+//       pickup_location: item.pickup_location || item.start_location || "",
+//       drop_location: item.drop_location || item.end_location || "",
+//       price: item.price || 0,
+//       booked_at: moment(item.updatedAt).format("YYYY-MM-DD HH:mm:ss"),
+//     }));
+
+//     if (allBookings.length === 0) {
+//       return res.status(200).json({
+//         status: "success",
+//         message: "No bookings found in the next 24 hours",
+//         data: [],
+//       });
+//     }
+
+//     return res.status(200).json({
+//       status: "success",
+//       message: "Bookings are retrieved successfully",
+//       data: allBookings,
+//     });
+//   } catch (error) {
+//     console.error("Error in getMyBookings:", error);
+//     return res.status(500).json({
+//       status: "fail",
+//       message: error.message,
+//       data: [],
+//     });
+//   }
+// };
 
 // export const getMyPublished = async (req, res) => {
 //   try {

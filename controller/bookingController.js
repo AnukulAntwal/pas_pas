@@ -13,20 +13,28 @@ dotenv.config();
 
 export const bookServiceOrPackage = async (req, res) => {
   try {
-    const { reference_id, type } = req.body;
+    const { reference_id, type, message, offer_price } = req.body;
     const userId = req.user._id;
 
     if (!reference_id || type === undefined) {
-      return res.status(400).json({ status:"fail", message: "reference_id and type required", data: [] });
+      return res.status(400).json({
+        status: "fail",
+        message: "reference_id and type required",
+        data: []
+      });
     }
 
     // 🔍 check already booked
     let booking = await Booking.findOne({ reference_id });
 
     if (booking && booking.is_booked === 1) {
-      return res.status(200).json({ status:"success", message: "Already booked", data: [] });
+      return res.status(200).json({
+        status: "success",
+        message: "Already booked",
+        data: []
+      });
     }
-    let cancel_reason="";
+
     if (!booking) {
       booking = new Booking({
         reference_id,
@@ -34,14 +42,15 @@ export const bookServiceOrPackage = async (req, res) => {
         is_booked: 1,
         status: 1,
         booking_type: "Booked",
-        booked_by: userId
+        booked_by: userId,
+        cancel_reason: ""
       });
     } else {
       booking.is_booked = 1;
       booking.status = 1;
       booking.booking_type = "Booked";
       booking.booked_by = userId;
-      booking.cancel_reason = cancel_reason;
+      booking.cancel_reason = "";
     }
 
     await booking.save();
@@ -50,27 +59,37 @@ export const bookServiceOrPackage = async (req, res) => {
        CHAT + NOTIFICATION
     ========================= */
 
-    // 🔎 get reference owner (receiver)
+    // 🔎 get reference owner
     let referenceData;
     if (type === 0) {
       referenceData = await DeliveryService.findById(reference_id).select("uid");
-    } else {
+    } else if( type === 1) {
       referenceData = await Package.findById(reference_id).select("uid");
+    }else{
+      return res.status(400).json({
+        status: "fail",
+        message: "Invalid type",
+        data: []
+      });
     }
 
     const receiverId = referenceData?.uid;
 
+    let sentMessage = message && message.trim() !== ""
+      ? message
+      : "Your service has been booked successfully";
+
     if (receiverId) {
       const conversation_id = await getNextConversationId();
 
-      // 💬 CHAT (default message)
+      // 💬 CHAT
       await Chat.create({
         conversation_id,
         conversation_for: type,
         reference_id,
         sender_id: userId,
         receiver_id: receiverId,
-        message: "Your service has been booked successfully",
+        message: sentMessage,
         unread_count: 1,
         is_read: 0
       });
@@ -81,21 +100,49 @@ export const bookServiceOrPackage = async (req, res) => {
         receiver_id: receiverId,
         conversation_id,
         reference_id,
-        message_text: "Your service has been booked",
+        message_text: sentMessage,
         type: "message"
       });
     }
 
+    /* =========================
+       USER DETAILS (RESPONSE)
+    ========================= */
+
+    const bookedByUser = await User.findById(userId)
+      .select("first_name last_name phone_number email")
+      .lean();
+
+    const referenceOwner = receiverId
+      ? await User.findById(receiverId)
+          .select("first_name last_name phone_number email")
+          .lean()
+      : null;
+
     return res.status(200).json({
-      status:"success",
+      status: "success",
       message: "Booked successfully",
-      data: booking
+      data: {
+        booking_id: booking._id,
+        reference_id,
+        type,
+        booking_type: booking.booking_type,
+        is_booked: booking.is_booked,
+        offer_price: offer_price ?? null,
+        booked_by: bookedByUser,
+        reference_owner: referenceOwner
+      }
     });
 
   } catch (err) {
-    return res.status(500).json({ message: err.message });
+    return res.status(500).json({
+      status: "fail",
+      message: err.message,
+      data: []
+    });
   }
 };
+
 
 export const cancelBookingByReference = async (req, res) => {
   try {
@@ -103,77 +150,130 @@ export const cancelBookingByReference = async (req, res) => {
     const userId = req.user._id;
 
     if (!reference_id) {
-      return res.status(400).json({ status:"fail", message: "reference_id required", data: [] });
+      return res.status(400).json({
+        status: "fail",
+        message: "reference_id required",
+        data: []
+      });
     }
 
-    // 🔍 Find booking by reference_id
+    // 🔍 Find booking
     const booking = await Booking.findOne({ reference_id });
 
     if (!booking) {
-      return res.status(200).json({ status:"success", message: "Booking not found", data: [] });
+      return res.status(200).json({
+        status: "success",
+        message: "Booking not found",
+        data: []
+      });
     }
 
-    // ❌ User can cancel only own booking
-    if (booking.booked_by.toString() !== userId.toString()) {
+    // ❌ Only own booking can be cancelled
+    if (booking.booked_by?.toString() !== userId.toString()) {
       return res.status(200).json({
-        status:"success", 
+        status: "success",
         message: "You can cancel only your own booking",
         data: []
       });
     }
 
-    // ❌ Already cancelled
+   // ❌ No active booking found
     if (booking.is_booked === 0) {
-      return res.status(200).json({ status:"success", message: "Booking already cancelled", data: [] });
+      return res.status(200).json({
+        status: "success",
+        message: "You cannot cancel this booking because it is not currently booked",
+        data: []
+      });
     }
 
-    // 🔄 Update booking
+
+    /* =========================
+       UPDATE BOOKING
+    ========================= */
+
     booking.is_booked = 0;
     booking.status = 0;
     booking.booking_type = "Cancelled";
     booking.cancel_reason = cancel_reason || "";
+    booking.booked_by = null; // ✅ clear booked_by on cancel
 
     await booking.save();
 
     /* =========================
-       NOTIFICATION ONLY
+       GET REFERENCE OWNER
     ========================= */
 
     let referenceData;
     if (booking.type === 0) {
       referenceData = await DeliveryService
         .findById(reference_id)
-        .select("uid");
+        .select("uid")
+        .lean();
     } else {
       referenceData = await Package
         .findById(reference_id)
-        .select("uid");
+        .select("uid")
+        .lean();
     }
 
-    const receiverId = referenceData?.uid;
+    const referenceOwnerId = referenceData?.uid;
+
+    /* =========================
+       NOTIFICATION ONLY
+    ========================= */
+
+    if (referenceOwnerId) {
       const conversation_id = await getNextConversationId();
 
-    if (receiverId) {
       await Notification.create({
         sender_id: userId,
-        receiver_id: receiverId,
-        conversation_id: conversation_id,
+        receiver_id: referenceOwnerId,
+        conversation_id,
         reference_id: booking._id,
         message_text: "Booking has been cancelled",
         type: "message"
       });
     }
 
+    /* =========================
+       USER DETAILS (RESPONSE)
+    ========================= */
+
+    const cancelledBy = await User.findById(userId)
+      .select("first_name last_name phone_number email")
+      .lean();
+
+    const referenceOwner = referenceOwnerId
+      ? await User.findById(referenceOwnerId)
+          .select("first_name last_name phone_number email")
+          .lean()
+      : null;
+
     return res.status(200).json({
-      status:"success",
+      status: "success",
       message: "Booking cancelled successfully",
-      data: booking
+      data: {
+        booking_id: booking._id,
+        reference_id,
+        type: booking.type,
+        booking_type: booking.booking_type,
+        is_booked: booking.is_booked,
+        cancel_reason: booking.cancel_reason,
+        cancelled_by: cancelledBy,
+        booked_by: null,              // ✅ explicitly null
+        reference_owner: referenceOwner
+      }
     });
 
   } catch (err) {
-    return res.status(500).json({ message: err.message });
+    return res.status(500).json({
+      status: "fail",
+      message: err.message,
+      data: []
+    });
   }
 };
+
 
 export const getMyBookings = async (req, res) => {
   try {

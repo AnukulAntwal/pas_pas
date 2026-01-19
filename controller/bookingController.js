@@ -106,6 +106,25 @@ export const bookServiceOrPackage = async (req, res) => {
     }
 
     /* =========================
+   UPDATE AVAILABILITY
+    ========================= */
+
+    if (type === 0) {
+      // Delivery Service booked
+      await DeliveryService.findByIdAndUpdate(
+        reference_id,
+        { is_available: 0 }
+      );
+    } else if (type === 1) {
+      // Package booked
+      await Package.findByIdAndUpdate(
+        reference_id,
+        { is_available: 0 }
+      );
+    }
+
+
+    /* =========================
        USER DETAILS (RESPONSE)
     ========================= */
 
@@ -236,6 +255,25 @@ export const cancelBookingByReference = async (req, res) => {
     }
 
     /* =========================
+   UPDATE AVAILABILITY
+    ========================= */
+
+    if (booking.type === 0) {
+      // Delivery Service cancelled
+      await DeliveryService.findByIdAndUpdate(
+        reference_id,
+        { is_available: 1 }
+      );
+    } else if (booking.type === 1) {
+      // Package cancelled
+      await Package.findByIdAndUpdate(
+        reference_id,
+        { is_available: 1 }
+      );
+    }
+
+
+    /* =========================
        USER DETAILS (RESPONSE)
     ========================= */
 
@@ -320,10 +358,14 @@ export const getMyBookings = async (req, res) => {
             .lean();
 
           referenceDetails = {
+            reference_id: service._id,
+            type: 0,
             start_location: service.start_location,
             end_location: service.end_location,
             price: service.price,
             date_time: service.date_time
+        ? moment(service.date_time).format("YYYY-MM-DD HH:mm:ss")
+        : null,
           };
         }
       }
@@ -342,10 +384,14 @@ export const getMyBookings = async (req, res) => {
             .lean();
 
           referenceDetails = {
+            reference_id: parcel._id,
+            type: 1,
             pickup_location: parcel.pickup_location,
             drop_location: parcel.drop_location,
             price: parcel.price,
             date_time: parcel.date_time
+        ? moment(parcel.date_time).format("YYYY-MM-DD HH:mm:ss")
+        : null,
           };
         }
       }

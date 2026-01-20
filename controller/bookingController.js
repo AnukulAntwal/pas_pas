@@ -24,6 +24,29 @@ export const bookServiceOrPackage = async (req, res) => {
       });
     }
 
+    // 🔎 get reference owner
+    let referenceData;
+    if (type === 0) {
+      referenceData = await DeliveryService.findById(reference_id).select("uid");
+    } else if (type === 1) {
+      referenceData = await Package.findById(reference_id).select("uid");
+    } else {
+      return res.status(400).json({
+        status: "fail",
+        message: "Invalid type",
+        data: []
+      });
+    }
+    // ❌ User cannot book own service/package
+    if (referenceData?.uid?.toString() === userId.toString()) {
+      return res.status(200).json({
+        status: "success",
+        message: "You cannot book your own service",
+        data: []
+      });
+    }
+
+
     // 🔍 check already booked
     let booking = await Booking.findOne({ reference_id });
 
@@ -58,20 +81,6 @@ export const bookServiceOrPackage = async (req, res) => {
     /* =========================
        CHAT + NOTIFICATION
     ========================= */
-
-    // 🔎 get reference owner
-    let referenceData;
-    if (type === 0) {
-      referenceData = await DeliveryService.findById(reference_id).select("uid");
-    } else if( type === 1) {
-      referenceData = await Package.findById(reference_id).select("uid");
-    }else{
-      return res.status(400).json({
-        status: "fail",
-        message: "Invalid type",
-        data: []
-      });
-    }
 
     const receiverId = referenceData?.uid;
 
@@ -316,6 +325,7 @@ export const cancelBookingByReference = async (req, res) => {
 export const getMyBookings = async (req, res) => {
   try {
     const userId = req.user._id;
+    const todayStart = moment().startOf("day").toDate();
 
     const bookings = await Booking.find({
       booked_by: userId,
@@ -336,13 +346,13 @@ export const getMyBookings = async (req, res) => {
 
     for (const booking of bookings) {
 
-      // 🔹 booked_by user
       const bookedByUser = await User.findById(booking.booked_by)
         .select("first_name last_name phone_number email")
         .lean();
 
       let referenceOwner = null;
       let referenceDetails = null;
+      let referenceDateTime = null;
 
       // =========================
       // DELIVERY SERVICE
@@ -352,22 +362,23 @@ export const getMyBookings = async (req, res) => {
           .select("uid start_location end_location price date_time")
           .lean();
 
-        if (service) {
-          referenceOwner = await User.findById(service.uid)
-            .select("first_name last_name phone_number email")
-            .lean();
+        // ❌ skip past services
+        if (!service || service.date_time < todayStart) continue;
 
-          referenceDetails = {
-            reference_id: service._id,
-            type: 0,
-            start_location: service.start_location,
-            end_location: service.end_location,
-            price: service.price,
-            date_time: service.date_time
-        ? moment(service.date_time).format("YYYY-MM-DD HH:mm:ss")
-        : null,
-          };
-        }
+        referenceDateTime = service.date_time;
+
+        referenceOwner = await User.findById(service.uid)
+          .select("first_name last_name phone_number email")
+          .lean();
+
+        referenceDetails = {
+          reference_id: service._id,
+          type: 0,
+          start_location: service.start_location,
+          end_location: service.end_location,
+          price: service.price,
+          date_time: moment(service.date_time).format("YYYY-MM-DD HH:mm:ss")
+        };
       }
 
       // =========================
@@ -378,22 +389,23 @@ export const getMyBookings = async (req, res) => {
           .select("uid pickup_location drop_location price date_time")
           .lean();
 
-        if (parcel) {
-          referenceOwner = await User.findById(parcel.uid)
-            .select("first_name last_name phone_number email")
-            .lean();
+        // ❌ skip past packages
+        if (!parcel || parcel.date_time < todayStart) continue;
 
-          referenceDetails = {
-            reference_id: parcel._id,
-            type: 1,
-            pickup_location: parcel.pickup_location,
-            drop_location: parcel.drop_location,
-            price: parcel.price,
-            date_time: parcel.date_time
-        ? moment(parcel.date_time).format("YYYY-MM-DD HH:mm:ss")
-        : null,
-          };
-        }
+        referenceDateTime = parcel.date_time;
+
+        referenceOwner = await User.findById(parcel.uid)
+          .select("first_name last_name phone_number email")
+          .lean();
+
+        referenceDetails = {
+          reference_id: parcel._id,
+          type: 1,
+          pickup_location: parcel.pickup_location,
+          drop_location: parcel.drop_location,
+          price: parcel.price,
+          date_time: moment(parcel.date_time).format("YYYY-MM-DD HH:mm:ss")
+        };
       }
 
       result.push({
@@ -408,6 +420,14 @@ export const getMyBookings = async (req, res) => {
         reference_owner: referenceOwner,
         reference_details: referenceDetails,
         created_at: moment(booking.createdAt).format("YYYY-MM-DD HH:mm:ss")
+      });
+    }
+    // 🔴 If bookings exist but filtered out
+    if (!result.length) {
+      return res.status(200).json({
+        status: "success",
+        message: "No active bookings found",
+        data: []
       });
     }
 
@@ -425,6 +445,7 @@ export const getMyBookings = async (req, res) => {
     });
   }
 };
+
 
 
 // export const bookOrCancel = async (req, res) => {
@@ -790,7 +811,8 @@ export const getMyBookings = async (req, res) => {
 
 export const getMyPublished = async (req, res) => {
   try {
-    const { user_id } = req.query;
+        const user_id = req.user._id;
+
 
     if (!user_id) {
       return res.status(400).json({
@@ -813,14 +835,22 @@ export const getMyPublished = async (req, res) => {
       });
     }
 
+    const todayStart = moment().startOf("day").toDate();
+
     // 🧭 Fetch rides
-    // 🧭 Fetch rides
-const rides = await DeliveryService.find({ uid: user_id })
+const rides = await DeliveryService.find({
+  uid: user_id,
+  date_time: { $gte: todayStart } // ✅ today & future only
+})
   .sort({ createdAt: -1 })
   .lean();
 
+
 // 📦 Fetch packages
-const packages = await Package.find({ uid: user_id })
+const packages = await Package.find({
+  uid: user_id,
+  date_time: { $gte: todayStart } // ✅ today & future only
+})
   .sort({ createdAt: -1 })
   .lean();
 

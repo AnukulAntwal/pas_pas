@@ -73,6 +73,7 @@ export const getPackages = async (req, res) => {
     const dayEnd = moment(date_time).endOf("day").toDate();
 
     const packages = await Package.find({
+      is_available: 1,
       date_time: { $gte: dayStart, $lte: dayEnd },
       $or: [
         // 1️⃣ Direct pickup → drop match

@@ -175,6 +175,7 @@ export const getServices = async (req, res) => {
     // 🧭 Step 2: Search rides within radius of start/end AND on the same date
     const rides = await DeliveryService.find(
       {
+        is_available: 1,
         date_time: { $gte: dayStart, $lte: dayEnd },
         $or: [
           // direct start → end match

@@ -51,7 +51,7 @@ const deliveryServiceSchema = new mongoose.Schema(
       type: Boolean,
       default: false
     },
-    is_available: { type: Number, default: 0 },
+    is_available: { type: Number, default: 1 },
     is_rated: { type: Number, default: 0 },
     // ✅ CORRECT: TTL field for auto-deletion
     expiresAt: {

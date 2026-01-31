@@ -40,7 +40,7 @@ export const bookServiceOrPackage = async (req, res) => {
     // ❌ User cannot book own service/package
     if (referenceData?.uid?.toString() === userId.toString()) {
       return res.status(200).json({
-        status: "success",
+        status: "fail",
         message: "You cannot book your own service",
         data: []
       });

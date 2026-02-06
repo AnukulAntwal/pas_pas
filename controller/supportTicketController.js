@@ -86,6 +86,7 @@ export const getAppVersion = async (req, res) => {
     return res.status(200).json({
       status: "success",
       data: {
+        platform: version.platform,
         latest_version: version.latest_version,
         minimum_supported_version: version.minimum_supported_version,
         force_update: version.force_update,

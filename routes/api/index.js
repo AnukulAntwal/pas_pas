@@ -28,6 +28,8 @@ router.use('/booking', verifyCustomToken, bookingRoute);
 router.use('/publications', verifyCustomToken, bookingRoute);
 router.use('/published', verifyCustomToken, bookingRoute);
 router.use('/contact', verifyCustomToken, supportTicketRoute);
+router.use('/app', verifyCustomToken, supportTicketRoute);
+
 
 router.use('/users',  userRoutes);
 

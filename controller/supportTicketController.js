@@ -87,6 +87,7 @@ export const getAppVersion = async (req, res) => {
 
     return res.status(200).json({
       status: "success",
+      message: "App version details fetched successfully",
       data
     });
 

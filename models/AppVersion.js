@@ -36,4 +36,11 @@ const appVersionSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+appVersionSchema.path("createdAt").get(function (date) {
+  return moment(date).format("YYYY-MM-DD HH:mm:ss");
+});
+
+appVersionSchema.path("updatedAt").get(function (date) {
+  return moment(date).format("YYYY-MM-DD HH:mm:ss");
+});
 export default mongoose.model("AppVersion", appVersionSchema);

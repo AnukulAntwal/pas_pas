@@ -8,6 +8,7 @@ import initSocket from "./socketServer.js";
 import path from "path";
 import { fileURLToPath } from "url";
 import "./cron/deliveryCron.js"; // 👈 THIS LINE IS MUST
+import appVersion from './routes/app/index.js';
 
 dotenv.config();
 
@@ -24,6 +25,7 @@ app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 // Routes
 app.use("/api", routes);
+app.use('/app',  appVersion);
 
 app.get("/terms", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "terms.html"));

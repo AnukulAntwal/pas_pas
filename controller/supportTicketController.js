@@ -1,5 +1,6 @@
 import SupportTicket from "../models/SupportTicket.js";
 import AppVersion from "../models/AppVersion.js";
+import moment from "moment";
 
 export const createSupportTicket = async (req, res) => {
   try {
@@ -60,46 +61,41 @@ export const createSupportTicket = async (req, res) => {
 };
 
 
+
 export const getAppVersion = async (req, res) => {
   try {
-    const { platform } = req.query;
+    const versions = await AppVersion.find({}).lean();
 
-    if (!platform) {
-      return res.status(400).json({
-        status: "fail",
-        message: "platform is required",
-        data: []
-      });
-    }
+    const data = {};
 
-    const version = await AppVersion.findOne({
-      platform: platform.toUpperCase()
-    }).lean();
+    versions.forEach(v => {
+      data[v.platform] = {
+        latest_version: v.latest_version,
+        minimum_supported_version: v.minimum_supported_version,
+        force_update: v.force_update,
+        update_url: v.update_url,
+        message: v.message,
+        created_at: v.createdAt
+        ? moment(v.createdAt).format("YYYY-MM-DD HH:mm:ss")
+        : null,
+        updated_at: v.updatedAt
+        ? moment(v.updatedAt).format("YYYY-MM-DD HH:mm:ss")
+        : null
 
-    if (!version) {
-      return res.status(200).json({
-        status: "success",
-        data: null
-      });
-    }
+      };
+    });
 
     return res.status(200).json({
       status: "success",
-      data: {
-        platform: version.platform,
-        latest_version: version.latest_version,
-        minimum_supported_version: version.minimum_supported_version,
-        force_update: version.force_update,
-        update_url: version.update_url,
-        message: version.message
-      }
+      data
     });
 
   } catch (error) {
     return res.status(500).json({
       status: "fail",
       message: error.message,
-      data: []
+      data: {}
     });
   }
 };
+

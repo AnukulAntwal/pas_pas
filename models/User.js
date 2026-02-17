@@ -4,7 +4,7 @@ import moment from "moment";
 
 const userSchema = new mongoose.Schema(
   {
-    id: { type: Number, unique: true },  // ✅ integer id
+    // id: { type: Number, unique: true },  // ✅ integer id
     first_name: {
       type: String,
       required: true,

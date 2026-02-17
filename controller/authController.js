@@ -44,7 +44,7 @@ export const requestPasswordReset = async (req, res) => {
     console.error("Request password reset error:", error);
     res.status(500).json({
       success: "fail",
-      message: "Failed to send OTP. Please try again.",
+      message: error.message || "Failed to request password reset",
       data: [],
     });
   }

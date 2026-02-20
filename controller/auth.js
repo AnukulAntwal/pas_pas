@@ -89,12 +89,25 @@ export const loginController = async (req, res) => {
     user.token = token;
 
     const userSave = await user.save();
+        // ✅ Create base URL
+    const baseUrl = `${req.protocol}://${req.get("host")}`;
+
+    // ✅ Convert mongoose document to normal object
+    const userObj = userSave.toObject();
+
+    /* ================= PROFILE IMAGE ================= */
+
+    if (userObj.profile_image) {
+      userObj.profile_image = `${baseUrl}/uploads/profile_images/${userObj.profile_image}`;
+    } else {
+      userObj.profile_image = null;
+    }
 
     // Step 6: Respond with token
     return res.status(200).json({
       status: "success",
       message: "Login successful",
-      data: userSave
+      data: userObj
     });
 
   } catch (e) {

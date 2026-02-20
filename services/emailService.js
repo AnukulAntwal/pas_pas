@@ -18,20 +18,59 @@ const transporter = nodemailer.createTransport({
 
 export const sendOTPEmail = async (email, otp) => {
   const mailOptions = {
-    from: process.env.EMAIL_USER,
+    from: `PasPas App Reset Link <${process.env.EMAIL_USER}>`,
     to: email,
-    subject: 'Password Reset OTP',
+    subject: 'Password Reset OTP - Pas Pas App Platform',
     html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #333;">Password Reset Request</h2>
-        <p>You requested to reset your password. Use the OTP below to proceed:</p>
-        <div style="background-color: #f4f4f4; padding: 20px; text-align: center; font-size: 32px; font-weight: bold; letter-spacing: 5px; margin: 20px 0;">
+  <div style="font-family: Arial, sans-serif; background-color: #f4f6f9; padding: 30px 0;">
+    <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+
+      <!-- Header -->
+      <div style="background: linear-gradient(90deg, #4e73df, #1cc88a); padding: 20px 30px;">
+        <h1 style="margin: 0; color: #ffffff; font-size: 22px;">
+          Pas Pas App Platform
+        </h1>
+      </div>
+
+      <!-- Body -->
+      <div style="padding: 30px;">
+        <h2 style="color: #333; margin-top: 0;">Password Reset Request</h2>
+        <p style="color: #555; line-height: 1.6;">
+          You requested to reset your password. Please use the OTP below to continue.
+        </p>
+
+        <!-- OTP Box -->
+        <div style="background-color: #f8f9fc; border: 2px dashed #4e73df; 
+                    padding: 20px; text-align: center; font-size: 32px; 
+                    font-weight: bold; letter-spacing: 8px; 
+                    margin: 25px 0; border-radius: 8px; color: #4e73df;">
           ${otp}
         </div>
-        <p style="color: #666;">This OTP will expire in <strong>5 minutes</strong>.</p>
-        <p style="color: #666;">If you didn't request this, please ignore this email.</p>
+
+        <p style="color: #666; font-size: 14px;">
+          This OTP will expire in <strong>5 minutes</strong>.
+        </p>
+
+        <p style="color: #888; font-size: 13px;">
+          If you did not request a password reset, please ignore this email.
+        </p>
       </div>
-    `
+
+      <!-- Footer -->
+      <div style="background-color: #f9fafb; padding: 20px 30px; 
+                  border-top: 1px solid #e3e6f0; font-size: 13px; 
+                  color: #999; text-align: left;">
+
+        <strong style="color: #555;">Platform:</strong> PasPas App <br/>
+        <strong style="color: #555;">Contact Us</strong> <br/>
+        Email: support@paspaspackage.com <br/><br/>
+        Last updated: 27 October 2025
+
+      </div>
+
+    </div>
+  </div>
+`
   };
 
   try {

@@ -184,9 +184,9 @@ export const getServices = async (req, res) => {
               { start_lat: { $gte: startLat - range, $lte: startLat + range } },
               { start_long: { $gte: startLong - range, $lte: startLong + range } },
               { end_lat: { $gte: endLat - range, $lte: endLat + range } },
-              { end_long: { $gte: endLong - range, $lte: endLong + range } },
-              { start_location: { $regex: start_location, $options: 'i' } }, 
-              { end_location: { $regex: end_location, $options: 'i' } }   
+              { end_long: { $gte: endLong - range, $lte: endLong + range } }
+              // { start_location: { $regex: start_location, $options: 'i' } }, 
+              // { end_location: { $regex: end_location, $options: 'i' } }   
             ]
           },
           // check if both start & end exist somewhere on route_path

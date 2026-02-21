@@ -54,6 +54,67 @@ export const savePackage = async (req, res) => {
 
 
 
+// export const getPackages = async (req, res) => {
+//   try {
+//     const {
+//       pickup_lat, pickup_long, drop_lat, drop_long, date_time
+//     } = req.body;
+
+//     if (!pickup_lat || !pickup_long || !drop_lat || !drop_long || !date_time) {
+//       return res.status(400).json({
+//         status: 'fail',
+//         message: "Provide pickup_lat, pickup_long, drop_lat, drop_long, and date_time",
+//         data:[]
+//       });
+//     }
+
+//     const range = 0.25; // ~25km range to include in-between stops
+//     const dayStart = moment(date_time).startOf("day").toDate();
+//     const dayEnd = moment(date_time).endOf("day").toDate();
+
+//     const packages = await Package.find({
+//       is_available: 1,
+//       date_time: { $gte: dayStart, $lte: dayEnd },
+//       $or: [
+//         // 1️⃣ Direct pickup → drop match
+//         {
+//           $and: [
+//             { pickup_lat: { $gte: pickup_lat - range, $lte: pickup_lat + range } },
+//             { pickup_long: { $gte: pickup_long - range, $lte: pickup_long + range } },
+//             { drop_lat: { $gte: drop_lat - range, $lte: drop_lat + range } },
+//             { drop_long: { $gte: drop_long - range, $lte: drop_long + range } }
+//           ]
+//         },
+//         // 2️⃣ Check if pickup/drop exist somewhere on route_path
+//         {
+//           $and: [
+//             { route_path: { $elemMatch: { lat: { $gte: pickup_lat - range, $lte: pickup_lat + range }, long: { $gte: pickup_long - range, $lte: pickup_long + range } } } },
+//             { route_path: { $elemMatch: { lat: { $gte: drop_lat - range, $lte: drop_lat + range }, long: { $gte: drop_long - range, $lte: drop_long + range } } } }
+//           ]
+//         }
+//       ]
+//     })
+//     .populate("uid", "first_name last_name phone_number").populate('booked_by', 'first_name last_name')
+//     .select("-route_path")
+//     .sort({ date_time: 1 });
+
+//     if (!packages.length) {
+//       return res.status(200).json({ status: 'success', message: "No parcel were found on this route", data: [] });
+//     }
+
+//     res.status(200).json({
+//       status: 'success',
+//       count: packages.length,
+//       message: "Matching parcel found!",
+//       data: packages,
+//     });
+
+//   } catch (error) {
+//     console.error("Error fetching packages:", error);
+//     res.status(500).json({ status: 'fail', message: error.message,data:[] });
+//   }
+// };
+
 export const getPackages = async (req, res) => {
   try {
     const {
@@ -68,13 +129,22 @@ export const getPackages = async (req, res) => {
       });
     }
 
-    const range = 0.25; // ~25km range to include in-between stops
-    const dayStart = moment(date_time).startOf("day").toDate();
-    const dayEnd = moment(date_time).endOf("day").toDate();
+    const range = 0.25; // ~25km range
+
+    // ✅ NEW DATE LOGIC (Selected date → next 7 days)
+    const searchDate = moment(date_time);
+
+    const dayStart = searchDate.clone().startOf("day").toDate();
+
+    const dayEnd = searchDate
+      .clone()
+      .add(7, "days")   // 🔥 next 7 days
+      .endOf("day")
+      .toDate();
 
     const packages = await Package.find({
       is_available: 1,
-      date_time: { $gte: dayStart, $lte: dayEnd },
+      date_time: { $gte: dayStart, $lte: dayEnd },   // 🔥 updated range
       $or: [
         // 1️⃣ Direct pickup → drop match
         {
@@ -85,26 +155,50 @@ export const getPackages = async (req, res) => {
             { drop_long: { $gte: drop_long - range, $lte: drop_long + range } }
           ]
         },
-        // 2️⃣ Check if pickup/drop exist somewhere on route_path
+
+        // 2️⃣ Pickup & Drop somewhere on route_path
         {
           $and: [
-            { route_path: { $elemMatch: { lat: { $gte: pickup_lat - range, $lte: pickup_lat + range }, long: { $gte: pickup_long - range, $lte: pickup_long + range } } } },
-            { route_path: { $elemMatch: { lat: { $gte: drop_lat - range, $lte: drop_lat + range }, long: { $gte: drop_long - range, $lte: drop_long + range } } } }
+            {
+              route_path: {
+                $elemMatch: {
+                  lat: { $gte: pickup_lat - range, $lte: pickup_lat + range },
+                  long: { $gte: pickup_long - range, $lte: pickup_long + range }
+                }
+              }
+            },
+            {
+              route_path: {
+                $elemMatch: {
+                  lat: { $gte: drop_lat - range, $lte: drop_lat + range },
+                  long: { $gte: drop_long - range, $lte: drop_long + range }
+                }
+              }
+            }
           ]
         }
       ]
     })
-    .populate("uid", "first_name last_name phone_number").populate('booked_by', 'first_name last_name')
+    .populate("uid", "first_name last_name phone_number")
+    .populate('booked_by', 'first_name last_name')
     .select("-route_path")
     .sort({ date_time: 1 });
 
     if (!packages.length) {
-      return res.status(200).json({ status: 'success', message: "No parcel were found on this route", data: [] });
+      return res.status(200).json({
+        status: 'success',
+        message: "No parcel found from selected date to next 7 days",
+        data: []
+      });
     }
 
     res.status(200).json({
       status: 'success',
       count: packages.length,
+      date_range: {
+        from: dayStart,
+        to: dayEnd
+      },
       message: "Matching parcel found!",
       data: packages,
     });
@@ -114,7 +208,6 @@ export const getPackages = async (req, res) => {
     res.status(500).json({ status: 'fail', message: error.message,data:[] });
   }
 };
-
 
 export const deletePackage = async (req, res) => {
   try {

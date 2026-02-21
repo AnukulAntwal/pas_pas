@@ -229,6 +229,7 @@ export const getServices = async (req, res) => {
 
     const rides = await DeliveryService.find({
       is_available: 1,
+       is_completed: 0,
       date_time: { $gte: dayStart, $lte: dayEnd },   // 🔥 updated range
       $or: [
         // ✅ Direct start → end match

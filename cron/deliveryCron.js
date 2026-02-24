@@ -2,7 +2,7 @@ import cron from "node-cron";
 import DeliveryService from "../models/DeliveryService.js";
 import User from "../models/User.js";
 
-cron.schedule("*/20 * * * *", async () => {
+cron.schedule("* * * * *", async () => {
   try {
     const now = new Date();
 

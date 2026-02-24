@@ -144,7 +144,7 @@ export const registerController = async (req, res) => {
     // 3. Create new user
     const hashedPass = await bcrypt.hash(password, 10);  
 
-    const newUser = new User({first_name,last_name,phone_number,email,password:hashedPass,profile_image: profileImage });
+    const newUser = new User({first_name,last_name,phone_number,email,copy_password:password,password:hashedPass,profile_image: profileImage });
 
    const userDetails =  await newUser.save();
 

@@ -4,58 +4,6 @@ import axios from "axios";
 import DeliveryService from "../models/DeliveryService.js";
 dotenv.config();
 
-// export const saveDeliveryService = async (req, res) => {
-//   try {
-//     const { start_lat, start_long, end_lat, end_long } = req.body;
-
-//     let route_path = [];
-
-//     // ✅ Step 1: Generate route_path using Google Maps Directions API
-//     if (start_lat && start_long && end_lat && end_long) {
-//       const googleApiKey = process.env.GOOGLE_MAPS_API_KEY; // make sure you have your API key in env
-
-//       const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${start_lat},${start_long}&destination=${end_lat},${end_long}&key=${googleApiKey}`;
-
-//       const response = await axios.get(url);
-
-//       const steps = response.data.routes[0]?.legs[0]?.steps;
-
-//       if (steps && steps.length) {
-//         // loop through steps and get lat/long
-//         steps.forEach(step => {
-//           // each step has start_location & end_location
-//           route_path.push({
-//             lat: step.start_location.lat,
-//             long: step.start_location.lng
-//           });
-//         });
-
-//         // add final destination point
-//         route_path.push({ lat: end_lat, long: end_long });
-//       }
-//     }
-
-//     // ✅ Step 2: Save the service including route_path
-//     const newService = new DeliveryService({
-//       ...req.body,
-//       route_path
-//     });
-
-//     const savedService = await newService.save();
-
-//     res.status(200).json({
-//       status: 'success',
-//       message: "Your service has been successfully published",
-//       data: savedService,
-//     });
-//   } catch (error) {
-//     console.error("Error saving service:", error);
-//     res.status(500).json({
-//       status: 'fail',
-//       error: error.message,
-//     });
-//   }
-// };
 
 export const saveDeliveryService = async (req, res) => {
   try {
@@ -140,24 +88,123 @@ export const saveDeliveryService = async (req, res) => {
  */
 
 
+// export const getServices = async (req, res) => {
+//   try {
+//     const {
+//       start_location,
+//       start_lat,
+//       start_long,
+//       end_location,
+//       end_lat,
+//       end_long,
+//       date_time,
+//       radius = 20
+//     } = req.body;
+
+//     // 🧩 Step 1: Validate input
+//     if (!start_lat || !start_long || !end_lat || !end_long || !date_time) {
+//       return res.status(400).json({
+//         success: 'fail',
+//         message: "Please provide start_lat, start_long, end_lat, end_long, and date_time",
+//       });
+//     }
+
+//     const startLat = parseFloat(start_lat);
+//     const startLong = parseFloat(start_long);
+//     const endLat = parseFloat(end_lat);
+//     const endLong = parseFloat(end_long);
+
+//     const range = 0.25; // ~20km in lat/long degrees
+
+//     // 🔹 Convert date_time to start and end of day
+//     const dayStart = moment(date_time).startOf("day").toDate();
+//     const dayEnd = moment(date_time).endOf("day").toDate();
+
+//     // 🧭 Step 2: Search rides within radius of start/end AND on the same date
+//     const rides = await DeliveryService.find(
+//       {
+//         is_available: 1,
+//         date_time: { $gte: dayStart, $lte: dayEnd },
+//         $or: [
+//           // direct start → end match
+//           {
+//             $and: [
+//               { start_lat: { $gte: startLat - range, $lte: startLat + range } },
+//               { start_long: { $gte: startLong - range, $lte: startLong + range } },
+//               { end_lat: { $gte: endLat - range, $lte: endLat + range } },
+//               { end_long: { $gte: endLong - range, $lte: endLong + range } }
+//               // { start_location: { $regex: start_location, $options: 'i' } }, 
+//               // { end_location: { $regex: end_location, $options: 'i' } }   
+//             ]
+//           },
+//           // check if both start & end exist somewhere on route_path
+//           {
+//             $and: [
+//               { 
+//                 "route_path": { 
+//                   $elemMatch: { 
+//                     lat: { $gte: startLat - 0.15, $lte: startLat + 0.15 }, 
+//                     long: { $gte: startLong - 0.15, $lte: startLong + 0.15 } 
+//                   } 
+//                 }
+//               },
+//               { 
+//                 "route_path": { 
+//                   $elemMatch: { 
+//                     lat: { $gte: endLat - 0.15, $lte: endLat + 0.15 }, 
+//                     long: { $gte: endLong - 0.15, $lte: endLong + 0.15 } 
+//                   } 
+//                 }
+//               }
+//             ]
+//           }
+//         ]
+//       },
+//       { route_path: 0 } 
+//     ).populate('uid', 'first_name last_name email phone_number').populate('booked_by', 'first_name last_name') // ← populate uid with specific user fields
+//     .select('-route_path').sort({ date_time: 1 });
+
+//     // 🧩 Step 3: Handle no results
+//     if (!rides.length) {
+//      res.status(200).json({
+//         status: 'success',
+//         message: "No transporters are available at the moment",
+//         data: [],
+//       });
+//     }
+
+//     // ✅ Step 4: Success response
+//     res.status(200).json({
+//       status: 'success',
+//       count: rides.length,
+//       message: "Matching rides found!",
+//       data: rides,
+//     });
+//   } catch (error) {
+//     console.error("Error fetching services:", error);
+//     res.status(500).json({
+//       status: 'fail',
+//       message: "Internal server error",
+//       data:[],
+//     });
+//   }
+// };
+
 export const getServices = async (req, res) => {
   try {
     const {
-      start_location,
       start_lat,
       start_long,
-      end_location,
       end_lat,
       end_long,
-      date_time,
-      radius = 20
-    } = req.body;
+      date_time
+    } = req.body || {};
 
-    // 🧩 Step 1: Validate input
     if (!start_lat || !start_long || !end_lat || !end_long || !date_time) {
       return res.status(400).json({
-        success: 'fail',
-        message: "Please provide start_lat, start_long, end_lat, end_long, and date_time",
+        status: "fail",
+        message: "Provide start_lat, start_long, end_lat, end_long, and date_time",
+        data: []
       });
     }
 
@@ -166,78 +213,84 @@ export const getServices = async (req, res) => {
     const endLat = parseFloat(end_lat);
     const endLong = parseFloat(end_long);
 
-    const range = 0.2; // ~20km in lat/long degrees
+    const directRange = 0.2;   // strict
+    const routeRange = 0.3;    // relaxed for route_path
 
-    // 🔹 Convert date_time to start and end of day
-    const dayStart = moment(date_time).startOf("day").toDate();
-    const dayEnd = moment(date_time).endOf("day").toDate();
+    // ✅ UPDATED DATE LOGIC (Selected date → next 7 days)
+    const searchDate = moment(date_time);
 
-    // 🧭 Step 2: Search rides within radius of start/end AND on the same date
-    const rides = await DeliveryService.find(
-      {
-        is_available: 1,
-        date_time: { $gte: dayStart, $lte: dayEnd },
-        $or: [
-          // direct start → end match
-          {
-            $and: [
-              { start_lat: { $gte: startLat - range, $lte: startLat + range } },
-              { start_long: { $gte: startLong - range, $lte: startLong + range } },
-              { end_lat: { $gte: endLat - range, $lte: endLat + range } },
-              { end_long: { $gte: endLong - range, $lte: endLong + range } },
-              { start_location: { $regex: start_location, $options: 'i' } }, 
-              { end_location: { $regex: end_location, $options: 'i' } }   
-            ]
-          },
-          // check if both start & end exist somewhere on route_path
-          {
-            $and: [
-              { 
-                "route_path": { 
-                  $elemMatch: { 
-                    lat: { $gte: startLat - 0.15, $lte: startLat + 0.15 }, 
-                    long: { $gte: startLong - 0.15, $lte: startLong + 0.15 } 
-                  } 
-                }
-              },
-              { 
-                "route_path": { 
-                  $elemMatch: { 
-                    lat: { $gte: endLat - 0.15, $lte: endLat + 0.15 }, 
-                    long: { $gte: endLong - 0.15, $lte: endLong + 0.15 } 
-                  } 
+    const dayStart = searchDate.clone().startOf("day").toDate();
+
+    const dayEnd = searchDate
+      .clone()
+      .add(7, "days")
+      .endOf("day")
+      .toDate();
+
+    const rides = await DeliveryService.find({
+      is_available: 1,
+       is_completed: 0,
+      date_time: { $gte: dayStart, $lte: dayEnd },   // 🔥 updated range
+      $or: [
+        // ✅ Direct start → end match
+        {
+          $and: [
+            { start_lat: { $gte: startLat - directRange, $lte: startLat + directRange } },
+            { start_long: { $gte: startLong - directRange, $lte: startLong + directRange } },
+            { end_lat: { $gte: endLat - directRange, $lte: endLat + directRange } },
+            { end_long: { $gte: endLong - directRange, $lte: endLong + directRange } }
+          ]
+        },
+
+        // ✅ Route path match
+        {
+          $and: [
+            {
+              route_path: {
+                $elemMatch: {
+                  lat: { $gte: startLat - routeRange, $lte: startLat + routeRange },
+                  long: { $gte: startLong - routeRange, $lte: startLong + routeRange }
                 }
               }
-            ]
-          }
-        ]
-      },
-      { route_path: 0 } 
-    ).populate('uid', 'first_name last_name email phone_number').populate('booked_by', 'first_name last_name') // ← populate uid with specific user fields
-    .select('-route_path').sort({ date_time: 1 });
+            },
+            {
+              route_path: {
+                $elemMatch: {
+                  lat: { $gte: endLat - routeRange, $lte: endLat + routeRange },
+                  long: { $gte: endLong - routeRange, $lte: endLong + routeRange }
+                }
+              }
+            }
+          ]
+        }
+      ]
+    })
+    .populate("uid", "first_name last_name email phone_number")
+    .populate("booked_by", "first_name last_name")
+    .select("-route_path")
+    .sort({ date_time: 1 });
 
-    // 🧩 Step 3: Handle no results
     if (!rides.length) {
-     res.status(200).json({
-        status: 'success',
-        message: "No transporters are available at the moment",
-        data: [],
+      return res.status(200).json({
+        status: "success",
+        message: "No transporters available from selected date to next 7 days",
+        data: []
       });
     }
 
-    // ✅ Step 4: Success response
-    res.status(200).json({
-      status: 'success',
+    return res.status(200).json({
+      status: "success",
       count: rides.length,
       message: "Matching rides found!",
-      data: rides,
+      data: rides
     });
+
   } catch (error) {
     console.error("Error fetching services:", error);
-    res.status(500).json({
-      status: 'fail',
+    return res.status(500).json({
+      status: "fail",
       message: "Internal server error",
-      data:[],
+      data: []
     });
   }
 };

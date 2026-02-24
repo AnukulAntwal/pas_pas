@@ -48,6 +48,7 @@ const packageSchema = new mongoose.Schema(
     },
     
     is_available: { type: Number, default: 1 },
+    is_completed: { type: Number, default: 0 },
     cancel_reason: { type: String },
 
     booked_by: {

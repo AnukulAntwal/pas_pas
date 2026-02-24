@@ -18,13 +18,11 @@ const userSchema = new mongoose.Schema(
     phone_number: {
       type: String,
       required: true,
-      unique: true,
       match: /^[0-9]{10}$/, // 10 digit number validation
     },
     email: {
       type: String,
       required: true,
-      unique: true,
       lowercase: true,
     },
     password: {
@@ -65,14 +63,12 @@ const userSchema = new mongoose.Schema(
     },
     aadhar_number: {
       type: String,
-      unique: true,
       sparse: true,      // ✅ allows multiple null values
       match: /^[0-9]{12}$/, // Aadhaar = 12 digits
       default: null,
     },
     pan_number: {
       type: String,
-      unique: true,
       sparse: true,
       uppercase: true,
       match: /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, // PAN format

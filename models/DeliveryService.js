@@ -17,20 +17,15 @@ const deliveryServiceSchema = new mongoose.Schema(
     end_lat: { type: Number, required: true },
     end_long: { type: Number, required: true },
 
-   route_path: {
-    type: {
-      type: String,
-      enum: ["LineString"],
-      required: true
-    },
-    coordinates: {
-      type: [[Number]], // [ [lng, lat], [lng, lat] ]
-      required: true
-    }
-  },
+    route_path: [
+      {
+        lat: { type: Number },
+        long: { type: Number },
+        _id: false
+      },
+    ],
 
-  route_polyline: { type: String },
-
+    route_polyline: { type: String },
     
     transport_type: { type: String, required: true },
     price: { type: Number },

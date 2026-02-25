@@ -87,20 +87,13 @@ export const saveDeliveryService = async (req, res) => {
   try {
     const { start_lat, start_long, end_lat, end_long } = req.body;
 
-    if (!start_lat || !start_long || !end_lat || !end_long) {
-      return res.status(400).json({
-        status: "fail",
-        message: "Start and End coordinates are required",
-        data: []
-      });
-    }
-
     const startLat = parseFloat(start_lat);
     const startLong = parseFloat(start_long);
     const endLat = parseFloat(end_lat);
     const endLong = parseFloat(end_long);
 
     if (
+      !startLat || !startLong || !endLat || !endLong ||
       isNaN(startLat) || isNaN(startLong) ||
       isNaN(endLat) || isNaN(endLong)
     ) {
@@ -111,64 +104,34 @@ export const saveDeliveryService = async (req, res) => {
       });
     }
 
-    const googleApiKey = process.env.GOOGLE_MAPS_API_KEY;
-
-    if (!googleApiKey) {
-      return res.status(500).json({
-        status: "fail",
-        message: "Google API key not configured",
-        data: []
-      });
-    }
-
-    // ✅ Call Google Directions API
-    const directionsUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${startLat},${startLong}&destination=${endLat},${endLong}&key=${googleApiKey}`;
+    const directionsUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${startLat},${startLong}&destination=${endLat},${endLong}&key=${process.env.GOOGLE_MAPS_API_KEY}`;
 
     const response = await axios.get(directionsUrl);
 
     if (!response.data.routes?.length) {
       return res.status(400).json({
         status: "fail",
-        message: "No route found between selected locations",
+        message: "No route found",
         data: []
       });
     }
 
-    const route = response.data.routes[0];
-    const overviewPolyline = route.overview_polyline?.points;
+    const overviewPolyline =
+      response.data.routes[0].overview_polyline.points;
 
-    if (!overviewPolyline) {
-      return res.status(400).json({
-        status: "fail",
-        message: "Route polyline not found",
-        data: []
-      });
-    }
-
-    // ✅ Decode polyline
     const decodedPoints = polyline.decode(overviewPolyline);
 
-    // ✅ Convert to LineString format
     const coordinates = decodedPoints.map(([lat, lng]) => [
-      lng,  // longitude first
-      lat   // latitude second
+      lng,
+      lat
     ]);
 
-    if (!coordinates.length) {
-      return res.status(400).json({
-        status: "fail",
-        message: "Unable to generate route path",
-        data: []
-      });
-    }
-
-    // ✅ Final GeoJSON LineString
     const route_path = {
       type: "LineString",
-      coordinates: coordinates
+      coordinates
     };
 
-    const newService = new DeliveryService({
+    const newService = await DeliveryService.create({
       ...req.body,
       start_lat: startLat,
       start_long: startLong,
@@ -178,16 +141,14 @@ export const saveDeliveryService = async (req, res) => {
       route_polyline: overviewPolyline
     });
 
-    const savedService = await newService.save();
-
     return res.status(201).json({
       status: "success",
-      message: "Delivery service published successfully",
-      data: savedService
+      message: "Ride published successfully",
+      data: newService
     });
 
   } catch (error) {
-    console.error("Error saving delivery service:", error);
+    console.error(error);
     return res.status(500).json({
       status: "fail",
       message: "Internal server error",
@@ -412,24 +373,14 @@ export const getServices = async (req, res) => {
   try {
     const { start_lat, start_long, end_lat, end_long, date_time } = req.body;
 
-    if (!start_lat || !start_long || !end_lat || !end_long || !date_time) {
-      return res.status(400).json({
-        status: "fail",
-        message: "Provide start & end coordinates with date_time",
-        data: []
-      });
-    }
-
     const startLat = parseFloat(start_lat);
     const startLong = parseFloat(start_long);
     const endLat = parseFloat(end_lat);
     const endLong = parseFloat(end_long);
 
     if (
-      isNaN(startLat) ||
-      isNaN(startLong) ||
-      isNaN(endLat) ||
-      isNaN(endLong)
+      isNaN(startLat) || isNaN(startLong) ||
+      isNaN(endLat) || isNaN(endLong)
     ) {
       return res.status(400).json({
         status: "fail",
@@ -443,24 +394,25 @@ export const getServices = async (req, res) => {
     const dayEnd = searchDate.clone().add(7, "days").endOf("day").toDate();
 
     const maxDistance = 5000; // 5KM
+    const earthRadius = 6378137;
 
     const rides = await DeliveryService.aggregate([
 
-      // ✅ MUST be first stage
+      // 1️⃣ Pickup near route
       {
         $geoNear: {
           near: {
             type: "Point",
             coordinates: [startLong, startLat]
           },
-          distanceField: "startDistance",
+          distanceField: "pickupDistance",
           maxDistance: maxDistance,
           spherical: true,
           key: "route_path"
         }
       },
 
-      // ✅ Basic filters
+      // 2️⃣ Basic filters
       {
         $match: {
           is_available: 1,
@@ -469,15 +421,15 @@ export const getServices = async (req, res) => {
         }
       },
 
-      // ✅ Check if route passes near drop location
+      // 3️⃣ Drop must be near route (buffer logic)
       {
         $match: {
           route_path: {
-            $geoIntersects: {
-              $geometry: {
-                type: "Point",
-                coordinates: [endLong, endLat]
-              }
+            $geoWithin: {
+              $centerSphere: [
+                [endLong, endLat],
+                maxDistance / earthRadius
+              ]
             }
           }
         }
@@ -493,13 +445,13 @@ export const getServices = async (req, res) => {
       status: "success",
       count: rides.length,
       message: rides.length
-        ? "Matching rides found!"
+        ? "Matching rides found"
         : "No matching rides found",
       data: rides
     });
 
   } catch (error) {
-    console.error("Error fetching services:", error);
+    console.error(error);
     return res.status(500).json({
       status: "fail",
       message: "Internal server error",

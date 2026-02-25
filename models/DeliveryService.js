@@ -17,15 +17,20 @@ const deliveryServiceSchema = new mongoose.Schema(
     end_lat: { type: Number, required: true },
     end_long: { type: Number, required: true },
 
-    route_path: [
-      {
-        lat: { type: Number },
-        long: { type: Number },
-        _id: false
-      },
-    ],
+   route_path: {
+    type: {
+      type: String,
+      enum: ["LineString"],
+      required: true
+    },
+    coordinates: {
+      type: [[Number]], // [ [lng, lat], [lng, lat] ]
+      required: true
+    }
+  },
 
-    route_polyline: { type: String },
+  route_polyline: { type: String },
+
     
     transport_type: { type: String, required: true },
     price: { type: Number },
@@ -51,7 +56,6 @@ const deliveryServiceSchema = new mongoose.Schema(
       type: Boolean,
       default: false
     },
-    is_available: { type: Number, default: 1 },
     is_completed: { type: Number, default: 0 },
     is_rated: { type: Number, default: 0 },
     // ✅ CORRECT: TTL field for auto-deletion

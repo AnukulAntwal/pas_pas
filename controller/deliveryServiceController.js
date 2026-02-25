@@ -1,86 +1,200 @@
 import moment from "moment";   // ← Add this
 import dotenv from "dotenv";
 import axios from "axios";
+import polyline from "@mapbox/polyline";
 import DeliveryService from "../models/DeliveryService.js";
 dotenv.config();
+
+
+// export const saveDeliveryService = async (req, res) => {
+//   try {
+//     const { start_lat, start_long, end_lat, end_long } = req.body;
+//     const googleApiKey = process.env.GOOGLE_MAPS_API_KEY;
+//     let route_path = [];
+
+//     // ✅ Step 1: Generate main route_path using Google Maps Directions API
+//     if (start_lat && start_long && end_lat && end_long) {
+//       const mainUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${start_lat},${start_long}&destination=${end_lat},${end_long}&key=${googleApiKey}`;
+//       const mainResponse = await axios.get(mainUrl);
+//       const mainSteps = mainResponse.data.routes[0]?.legs[0]?.steps || [];
+
+//       // Collect route points
+//       mainSteps.forEach(step => {
+//         route_path.push({
+//           lat: step.start_location.lat,
+//           long: step.start_location.lng
+//         });
+//       });
+
+//       // Add final destination point
+//       route_path.push({ lat: end_lat, long: end_long });
+
+//       // ✅ Step 2: Add 20 km ahead from the destination
+//       const extendDistance = 20; // in km
+//       const earthRadius = 6371; // Earth radius in km
+
+//       // Calculate new lat/long for 20 km ahead
+//       const newLat =
+//         end_lat + (extendDistance / earthRadius) * (180 / Math.PI);
+//       const newLong =
+//         end_long +
+//         (extendDistance / earthRadius) *
+//           (180 / Math.PI) /
+//           Math.cos((end_lat * Math.PI) / 180);
+
+//       // Get the extra route from Google Maps API
+//       const extendUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${end_lat},${end_long}&destination=${newLat},${newLong}&key=${googleApiKey}`;
+//       const extendResponse = await axios.get(extendUrl);
+//       const extendSteps = extendResponse.data.routes[0]?.legs[0]?.steps || [];
+
+//       // Add the extended route steps
+//       extendSteps.forEach(step => {
+//         route_path.push({
+//           lat: step.start_location.lat,
+//           long: step.start_location.lng
+//         });
+//       });
+
+//       // Add the final extended point
+//       route_path.push({ lat: newLat, long: newLong });
+//     }
+
+//     // ✅ Step 3: Save the delivery service in DB
+//     const newService = new DeliveryService({
+//       ...req.body,
+//       route_path,
+//     });
+
+//     const savedService = await newService.save();
+
+//     res.status(200).json({
+//       status: "success",
+//       message: "Your service has been successfully published",
+//       data: savedService,
+//     });
+//   } catch (error) {
+//     console.error("Error saving delivery service:", error);
+//     res.status(500).json({
+//       status: "fail",
+//       message: error.message,
+//       data: [],
+//     });
+//   }
+// };
 
 
 export const saveDeliveryService = async (req, res) => {
   try {
     const { start_lat, start_long, end_lat, end_long } = req.body;
-    const googleApiKey = process.env.GOOGLE_MAPS_API_KEY;
-    let route_path = [];
 
-    // ✅ Step 1: Generate main route_path using Google Maps Directions API
-    if (start_lat && start_long && end_lat && end_long) {
-      const mainUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${start_lat},${start_long}&destination=${end_lat},${end_long}&key=${googleApiKey}`;
-      const mainResponse = await axios.get(mainUrl);
-      const mainSteps = mainResponse.data.routes[0]?.legs[0]?.steps || [];
-
-      // Collect route points
-      mainSteps.forEach(step => {
-        route_path.push({
-          lat: step.start_location.lat,
-          long: step.start_location.lng
-        });
+    if (!start_lat || !start_long || !end_lat || !end_long) {
+      return res.status(400).json({
+        status: "fail",
+        message: "Start and End coordinates are required",
+        data: []
       });
-
-      // Add final destination point
-      route_path.push({ lat: end_lat, long: end_long });
-
-      // ✅ Step 2: Add 20 km ahead from the destination
-      const extendDistance = 20; // in km
-      const earthRadius = 6371; // Earth radius in km
-
-      // Calculate new lat/long for 20 km ahead
-      const newLat =
-        end_lat + (extendDistance / earthRadius) * (180 / Math.PI);
-      const newLong =
-        end_long +
-        (extendDistance / earthRadius) *
-          (180 / Math.PI) /
-          Math.cos((end_lat * Math.PI) / 180);
-
-      // Get the extra route from Google Maps API
-      const extendUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${end_lat},${end_long}&destination=${newLat},${newLong}&key=${googleApiKey}`;
-      const extendResponse = await axios.get(extendUrl);
-      const extendSteps = extendResponse.data.routes[0]?.legs[0]?.steps || [];
-
-      // Add the extended route steps
-      extendSteps.forEach(step => {
-        route_path.push({
-          lat: step.start_location.lat,
-          long: step.start_location.lng
-        });
-      });
-
-      // Add the final extended point
-      route_path.push({ lat: newLat, long: newLong });
     }
 
-    // ✅ Step 3: Save the delivery service in DB
+    const startLat = parseFloat(start_lat);
+    const startLong = parseFloat(start_long);
+    const endLat = parseFloat(end_lat);
+    const endLong = parseFloat(end_long);
+
+    if (
+      isNaN(startLat) || isNaN(startLong) ||
+      isNaN(endLat) || isNaN(endLong)
+    ) {
+      return res.status(400).json({
+        status: "fail",
+        message: "Invalid coordinates",
+        data: []
+      });
+    }
+
+    const googleApiKey = process.env.GOOGLE_MAPS_API_KEY;
+
+    if (!googleApiKey) {
+      return res.status(500).json({
+        status: "fail",
+        message: "Google API key not configured",
+        data: []
+      });
+    }
+
+    // ✅ Call Google Directions API
+    const directionsUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${startLat},${startLong}&destination=${endLat},${endLong}&key=${googleApiKey}`;
+
+    const response = await axios.get(directionsUrl);
+
+    if (!response.data.routes?.length) {
+      return res.status(400).json({
+        status: "fail",
+        message: "No route found between selected locations",
+        data: []
+      });
+    }
+
+    const route = response.data.routes[0];
+    const overviewPolyline = route.overview_polyline?.points;
+
+    if (!overviewPolyline) {
+      return res.status(400).json({
+        status: "fail",
+        message: "Route polyline not found",
+        data: []
+      });
+    }
+
+    // ✅ Decode polyline
+    const decodedPoints = polyline.decode(overviewPolyline);
+
+    // ✅ Convert to LineString format
+    const coordinates = decodedPoints.map(([lat, lng]) => [
+      lng,  // longitude first
+      lat   // latitude second
+    ]);
+
+    if (!coordinates.length) {
+      return res.status(400).json({
+        status: "fail",
+        message: "Unable to generate route path",
+        data: []
+      });
+    }
+
+    // ✅ Final GeoJSON LineString
+    const route_path = {
+      type: "LineString",
+      coordinates: coordinates
+    };
+
     const newService = new DeliveryService({
       ...req.body,
+      start_lat: startLat,
+      start_long: startLong,
+      end_lat: endLat,
+      end_long: endLong,
       route_path,
+      route_polyline: overviewPolyline
     });
 
     const savedService = await newService.save();
 
-    res.status(200).json({
+    return res.status(201).json({
       status: "success",
-      message: "Your service has been successfully published",
-      data: savedService,
+      message: "Delivery service published successfully",
+      data: savedService
     });
+
   } catch (error) {
     console.error("Error saving delivery service:", error);
-    res.status(500).json({
+    return res.status(500).json({
       status: "fail",
-      message: error.message,
-      data: [],
+      message: "Internal server error",
+      data: []
     });
   }
 };
-
 /**
  * GET /api/delivery-services/search
  * Example:
@@ -190,20 +304,118 @@ export const saveDeliveryService = async (req, res) => {
 //   }
 // };
 
+// export const getServices = async (req, res) => {
+//   try {
+//     const {
+//       start_lat,
+//       start_long,
+//       end_lat,
+//       end_long,
+//       date_time
+//     } = req.body || {};
+
+//     if (!start_lat || !start_long || !end_lat || !end_long || !date_time) {
+//       return res.status(400).json({
+//         status: "fail",
+//         message: "Provide start_lat, start_long, end_lat, end_long, and date_time",
+//         data: []
+//       });
+//     }
+
+//     const startLat = parseFloat(start_lat);
+//     const startLong = parseFloat(start_long);
+//     const endLat = parseFloat(end_lat);
+//     const endLong = parseFloat(end_long);
+
+//     const directRange = 0.2;   // strict
+//     const routeRange = 0.3;    // relaxed for route_path
+
+//     // ✅ UPDATED DATE LOGIC (Selected date → next 7 days)
+//     const searchDate = moment(date_time);
+
+//     const dayStart = searchDate.clone().startOf("day").toDate();
+
+//     const dayEnd = searchDate
+//       .clone()
+//       .add(7, "days")
+//       .endOf("day")
+//       .toDate();
+
+//     const rides = await DeliveryService.find({
+//       is_available: 1,
+//        is_completed: 0,
+//       date_time: { $gte: dayStart, $lte: dayEnd },   // 🔥 updated range
+//       $or: [
+//         // ✅ Direct start → end match
+//         {
+//           $and: [
+//             { start_lat: { $gte: startLat - directRange, $lte: startLat + directRange } },
+//             { start_long: { $gte: startLong - directRange, $lte: startLong + directRange } },
+//             { end_lat: { $gte: endLat - directRange, $lte: endLat + directRange } },
+//             { end_long: { $gte: endLong - directRange, $lte: endLong + directRange } }
+//           ]
+//         },
+
+//         // ✅ Route path match
+//         {
+//           $and: [
+//             {
+//               route_path: {
+//                 $elemMatch: {
+//                   lat: { $gte: startLat - routeRange, $lte: startLat + routeRange },
+//                   long: { $gte: startLong - routeRange, $lte: startLong + routeRange }
+//                 }
+//               }
+//             },
+//             {
+//               route_path: {
+//                 $elemMatch: {
+//                   lat: { $gte: endLat - routeRange, $lte: endLat + routeRange },
+//                   long: { $gte: endLong - routeRange, $lte: endLong + routeRange }
+//                 }
+//               }
+//             }
+//           ]
+//         }
+//       ]
+//     })
+//     .populate("uid", "first_name last_name email phone_number")
+//     .populate("booked_by", "first_name last_name")
+//     .select("-route_path")
+//     .sort({ date_time: 1 });
+
+//     if (!rides.length) {
+//       return res.status(200).json({
+//         status: "success",
+//         message: "No transporters available from selected date to next 7 days",
+//         data: []
+//       });
+//     }
+
+//     return res.status(200).json({
+//       status: "success",
+//       count: rides.length,
+//       message: "Matching rides found!",
+//       data: rides
+//     });
+
+//   } catch (error) {
+//     console.error("Error fetching services:", error);
+//     return res.status(500).json({
+//       status: "fail",
+//       message: "Internal server error",
+//       data: []
+//     });
+//   }
+// };
 export const getServices = async (req, res) => {
   try {
-    const {
-      start_lat,
-      start_long,
-      end_lat,
-      end_long,
-      date_time
-    } = req.body || {};
+    const { start_lat, start_long, end_lat, end_long, date_time } = req.body;
 
     if (!start_lat || !start_long || !end_lat || !end_long || !date_time) {
       return res.status(400).json({
         status: "fail",
-        message: "Provide start_lat, start_long, end_lat, end_long, and date_time",
+        message: "Provide start & end coordinates with date_time",
         data: []
       });
     }
@@ -213,75 +425,76 @@ export const getServices = async (req, res) => {
     const endLat = parseFloat(end_lat);
     const endLong = parseFloat(end_long);
 
-    const directRange = 0.2;   // strict
-    const routeRange = 0.3;    // relaxed for route_path
-
-    // ✅ UPDATED DATE LOGIC (Selected date → next 7 days)
-    const searchDate = moment(date_time);
-
-    const dayStart = searchDate.clone().startOf("day").toDate();
-
-    const dayEnd = searchDate
-      .clone()
-      .add(7, "days")
-      .endOf("day")
-      .toDate();
-
-    const rides = await DeliveryService.find({
-      is_available: 1,
-       is_completed: 0,
-      date_time: { $gte: dayStart, $lte: dayEnd },   // 🔥 updated range
-      $or: [
-        // ✅ Direct start → end match
-        {
-          $and: [
-            { start_lat: { $gte: startLat - directRange, $lte: startLat + directRange } },
-            { start_long: { $gte: startLong - directRange, $lte: startLong + directRange } },
-            { end_lat: { $gte: endLat - directRange, $lte: endLat + directRange } },
-            { end_long: { $gte: endLong - directRange, $lte: endLong + directRange } }
-          ]
-        },
-
-        // ✅ Route path match
-        {
-          $and: [
-            {
-              route_path: {
-                $elemMatch: {
-                  lat: { $gte: startLat - routeRange, $lte: startLat + routeRange },
-                  long: { $gte: startLong - routeRange, $lte: startLong + routeRange }
-                }
-              }
-            },
-            {
-              route_path: {
-                $elemMatch: {
-                  lat: { $gte: endLat - routeRange, $lte: endLat + routeRange },
-                  long: { $gte: endLong - routeRange, $lte: endLong + routeRange }
-                }
-              }
-            }
-          ]
-        }
-      ]
-    })
-    .populate("uid", "first_name last_name email phone_number")
-    .populate("booked_by", "first_name last_name")
-    .select("-route_path")
-    .sort({ date_time: 1 });
-
-    if (!rides.length) {
-      return res.status(200).json({
-        status: "success",
-        message: "No transporters available from selected date to next 7 days",
+    if (
+      isNaN(startLat) ||
+      isNaN(startLong) ||
+      isNaN(endLat) ||
+      isNaN(endLong)
+    ) {
+      return res.status(400).json({
+        status: "fail",
+        message: "Invalid coordinates",
         data: []
       });
     }
 
+    const searchDate = moment(date_time);
+    const dayStart = searchDate.clone().startOf("day").toDate();
+    const dayEnd = searchDate.clone().add(7, "days").endOf("day").toDate();
+
+    const maxDistance = 5000; // 5KM
+
+    const rides = await DeliveryService.aggregate([
+
+      // ✅ MUST be first stage
+      {
+        $geoNear: {
+          near: {
+            type: "Point",
+            coordinates: [startLong, startLat]
+          },
+          distanceField: "startDistance",
+          maxDistance: maxDistance,
+          spherical: true,
+          key: "route_path"
+        }
+      },
+
+      // ✅ Basic filters
+      {
+        $match: {
+          is_available: 1,
+          is_completed: 0,
+          date_time: { $gte: dayStart, $lte: dayEnd }
+        }
+      },
+
+      // ✅ Check if route passes near drop location
+      {
+        $match: {
+          route_path: {
+            $geoIntersects: {
+              $geometry: {
+                type: "Point",
+                coordinates: [endLong, endLat]
+              }
+            }
+          }
+        }
+      },
+
+      {
+        $sort: { date_time: 1 }
+      }
+
+    ]);
+
     return res.status(200).json({
       status: "success",
       count: rides.length,
-      message: "Matching rides found!",
+      message: rides.length
+        ? "Matching rides found!"
+        : "No matching rides found",
       data: rides
     });
 
@@ -294,7 +507,6 @@ export const getServices = async (req, res) => {
     });
   }
 };
-
 export const deleteDeliveryService = async (req, res) => {
   try {
     const { service_id } = req.query; // id aayegi from URL params

@@ -25,6 +25,7 @@ cron.schedule("* * * * *", async () => {
       // ✅ Mark delivery as counted & completed
       delivery.is_delivery_counted = true;
       delivery.is_completed = 1;
+      delivery.is_available = 0;
 
       await delivery.save();
     }

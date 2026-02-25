@@ -124,7 +124,7 @@ export const registerController = async (req, res) => {
   
   const { error } = registerValidate.validate(req.body);
   if (error)
-    return res.status(400).json({ status: "fail", message: error.details[0].message, data: [] });
+    return res.status(400).json({ status: "fail", message: error.message, data: [] });
 
   try {
     const {first_name,last_name,phone_number,email,password}=req.body

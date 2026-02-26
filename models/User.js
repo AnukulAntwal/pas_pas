@@ -33,10 +33,10 @@ const userSchema = new mongoose.Schema(
     copy_password: {
       type: String,
     },
-     device_type: {
+    device_type: {
       type: String,
     },
-     device_token: {
+    device_token: {
       type: String,
     },
     last_login:{
@@ -46,24 +46,24 @@ const userSchema = new mongoose.Schema(
       type:String
     },
     profile_image: {
-    type: String,
-    default: null,
+      type: String,
+      default: null,
     },
     pincode: {
-    type: Number,
-    default: null,
+      type: Number,
+      default: null,
     },
     city: {
-    type: String,
-    default: null,
+      type: String,
+      default: null,
     },
     state: {
-    type: String,
-    default: null,
+      type: String,
+      default: null,
     },
     aadhar_number: {
       type: String,
-      sparse: true,      // ✅ allows multiple null values
+      sparse: true, // ✅ allows multiple null values
       match: /^[0-9]{12}$/, // Aadhaar = 12 digits
       default: null,
     },
@@ -103,22 +103,24 @@ const userSchema = new mongoose.Schema(
     },
     no_of_delivery: {
       type: Number,
-      default: 0
+      default: 0,
     },
     is_blocked: {
       type: Number,
       enum: [0, 1],
       default: 0, // ✅ default 0
-    },   
+    },
+    pan_resubmit_count: { type: Number, default: 0 },
+    aadhar_resubmit_count: { type: Number, default: 0 },
     resetPasswordToken: { type: String },
-    resetPasswordExpire: { type: Date },    
-  },  
+    resetPasswordExpire: { type: Date },
+  },
   {
-    timestamps: true ,
-    versionKey: false,     // ✅ removes "__v"
-    toJSON: { getters: true },  // 👈 JSON response me getter apply hoga
-    toObject: { getters: true }, 
-  }
+    timestamps: true,
+    versionKey: false, // ✅ removes "__v"
+    toJSON: { getters: true }, // 👈 JSON response me getter apply hoga
+    toObject: { getters: true },
+  },
 );
 
 // ✅ pre-save hook to auto increment ID

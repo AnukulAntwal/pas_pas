@@ -21,35 +21,44 @@ const deliveryServiceSchema = new mongoose.Schema(
       {
         lat: { type: Number },
         long: { type: Number },
-        _id: false
+        city: { type: String, default: null }, // ✅ store city name at save time
+        _id: false,
+      },
+    ],
+    road_stops: [
+      {
+        city: { type: String },
+        lat: { type: Number },
+        long: { type: Number },
+        _id: false,
       },
     ],
 
     route_polyline: { type: String },
-    
+
     transport_type: { type: String, required: true },
     price: { type: Number },
     contact_number: { type: String, required: true },
     description: { type: String },
 
     date_time: { type: Date, required: true },
-    
+
     booking_type: {
       type: String,
       enum: ["Booked", "Cancelled", "Available"],
-      default: "Available"
+      default: "Available",
     },
-    
+
     is_available: { type: Number, default: 1 },
     cancel_reason: { type: String },
-    
+
     booked_by: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User"
+      ref: "User",
     },
     is_delivery_counted: {
       type: Boolean,
-      default: false
+      default: false,
     },
     is_completed: { type: Number, default: 0 },
     is_rated: { type: Number, default: 0 },
@@ -59,15 +68,15 @@ const deliveryServiceSchema = new mongoose.Schema(
       required: true,
       // Index will be created separately
     },
-  },  
-  
-  {  
+  },
+
+  {
     timestamps: true,
     versionKey: false,
     id: false,
     toJSON: { getters: true },
     toObject: { getters: true },
-  }
+  },
 );
 
 // ✅ Create TTL Index - MongoDB will auto-delete documents when expiresAt time passes
@@ -96,6 +105,8 @@ deliveryServiceSchema.pre("validate", function (next) {
   next();
 });
 
-
-const DeliveryService = mongoose.model("DeliveryService", deliveryServiceSchema);
+const DeliveryService = mongoose.model(
+  "DeliveryService",
+  deliveryServiceSchema,
+);
 export default DeliveryService;

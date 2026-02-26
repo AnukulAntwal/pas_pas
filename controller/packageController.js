@@ -1,6 +1,12 @@
 import axios from "axios";
 import Package from "../models/Package.js";
 import moment from "moment";
+import {
+  getRoadStops,
+  filterStopsBetween,
+  validateRouteDirection,
+  computeRouteMatchScore,
+} from "../utils/helper/getCityFromLatLong.js";
 
 
 export const savePackage = async (req, res) => {
@@ -13,7 +19,16 @@ export const savePackage = async (req, res) => {
       // 1️⃣ Get main route steps
       const mainUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${pickup_lat},${pickup_long}&destination=${drop_lat},${drop_long}&key=${googleApiKey}`;
       const mainResponse = await axios.get(mainUrl);
+
+      // 🔍 Log API response status for debugging
+      if (mainResponse.data.status !== "OK") {
+        console.error("⚠️ Google Directions API error (package):", mainResponse.data.status, mainResponse.data.error_message || "");
+      }
+
       const mainSteps = mainResponse.data.routes[0]?.legs[0]?.steps || [];
+
+      // ✅ Add pickup point first
+      route_path.push({ lat: pickup_lat, long: pickup_long });
 
       mainSteps.forEach(step => {
         route_path.push({ lat: step.start_location.lat, long: step.start_location.lng });
@@ -35,10 +50,19 @@ export const savePackage = async (req, res) => {
         route_path.push({ lat: step.start_location.lat, long: step.start_location.lng });
       });
       route_path.push({ lat: newLat, long: newLong });
+
+      console.log(`✅ Package route path: ${route_path.length} points (${mainSteps.length} from main route, ${extendSteps.length} from extension)`);
     }
 
-    // 3️⃣ Save package
-    const newPackage = new Package({ ...req.body, route_path });
+    // ✅ Generate road_stops for intermediate city stops
+    const road_stops = await getRoadStops(
+      pickup_lat, pickup_long,
+      drop_lat, drop_long,
+      googleApiKey
+    );
+
+    // 3️⃣ Save package with route_path and road_stops
+    const newPackage = new Package({ ...req.body, route_path, road_stops });
     const savedPackage = await newPackage.save();
 
     res.status(200).json({
@@ -129,49 +153,50 @@ export const getPackages = async (req, res) => {
       });
     }
 
-    const range = 0.25; // ~25km range
+    const pickupLat = parseFloat(pickup_lat);
+    const pickupLong = parseFloat(pickup_long);
+    const dropLat = parseFloat(drop_lat);
+    const dropLong = parseFloat(drop_long);
 
-    // ✅ NEW DATE LOGIC (Selected date → next 7 days)
+    // ✅ Tighter radii for more accurate matching
+    const directRange = 0.09; // ~10 km for direct pickup/drop match
+    const routeRange = 0.15;  // ~15 km for route_path match
+
+    // ✅ Date range: selected date → next 7 days
     const searchDate = moment(date_time);
-
     const dayStart = searchDate.clone().startOf("day").toDate();
+    const dayEnd = searchDate.clone().add(7, "days").endOf("day").toDate();
 
-    const dayEnd = searchDate
-      .clone()
-      .add(7, "days")   // 🔥 next 7 days
-      .endOf("day")
-      .toDate();
-
+    // ✅ Fetch WITH route_path so we can validate direction post-query
     const packages = await Package.find({
       is_available: 1,
-      date_time: { $gte: dayStart, $lte: dayEnd },   // 🔥 updated range
+      date_time: { $gte: dayStart, $lte: dayEnd },
       $or: [
-        // 1️⃣ Direct pickup → drop match
+        // 1️⃣ Direct pickup → drop match (tight radius)
         {
           $and: [
-            { pickup_lat: { $gte: pickup_lat - range, $lte: pickup_lat + range } },
-            { pickup_long: { $gte: pickup_long - range, $lte: pickup_long + range } },
-            { drop_lat: { $gte: drop_lat - range, $lte: drop_lat + range } },
-            { drop_long: { $gte: drop_long - range, $lte: drop_long + range } }
+            { pickup_lat: { $gte: pickupLat - directRange, $lte: pickupLat + directRange } },
+            { pickup_long: { $gte: pickupLong - directRange, $lte: pickupLong + directRange } },
+            { drop_lat: { $gte: dropLat - directRange, $lte: dropLat + directRange } },
+            { drop_long: { $gte: dropLong - directRange, $lte: dropLong + directRange } }
           ]
         },
-
-        // 2️⃣ Pickup & Drop somewhere on route_path
+        // 2️⃣ Route path match (moderate radius)
         {
           $and: [
             {
               route_path: {
                 $elemMatch: {
-                  lat: { $gte: pickup_lat - range, $lte: pickup_lat + range },
-                  long: { $gte: pickup_long - range, $lte: pickup_long + range }
+                  lat: { $gte: pickupLat - routeRange, $lte: pickupLat + routeRange },
+                  long: { $gte: pickupLong - routeRange, $lte: pickupLong + routeRange }
                 }
               }
             },
             {
               route_path: {
                 $elemMatch: {
-                  lat: { $gte: drop_lat - range, $lte: drop_lat + range },
-                  long: { $gte: drop_long - range, $lte: drop_long + range }
+                  lat: { $gte: dropLat - routeRange, $lte: dropLat + routeRange },
+                  long: { $gte: dropLong - routeRange, $lte: dropLong + routeRange }
                 }
               }
             }
@@ -181,7 +206,6 @@ export const getPackages = async (req, res) => {
     })
     .populate("uid", "first_name last_name phone_number")
     .populate('booked_by', 'first_name last_name')
-    .select("-route_path")
     .sort({ date_time: 1 });
 
     if (!packages.length) {
@@ -192,20 +216,69 @@ export const getPackages = async (req, res) => {
       });
     }
 
+    // ✅ Post-query: validate direction + compute match score
+    const validatedPackages = packages
+      .map((pkg) => {
+        const pkgObj = pkg.toObject();
+
+        // 🔒 Direction check: user's "from" must appear BEFORE "to" on the route
+        const isValidDirection = validateRouteDirection(
+          pkgObj.route_path,
+          pickupLat, pickupLong,
+          dropLat, dropLong
+        );
+        if (!isValidDirection) return null; // ❌ wrong direction, skip
+
+        // 📊 Compute match score (lower = better)
+        pkgObj._matchScore = computeRouteMatchScore(
+          pkgObj.route_path,
+          pkgObj.pickup_lat, pkgObj.pickup_long,
+          pkgObj.drop_lat, pkgObj.drop_long,
+          pickupLat, pickupLong,
+          dropLat, dropLong
+        );
+
+        // ✅ Compute stops between pickup → drop
+        pkgObj.stops_between = filterStopsBetween(
+          pkgObj.road_stops,
+          pickupLat, pickupLong,
+          dropLat, dropLong
+        );
+
+        // 🧹 Remove internal fields from response
+        delete pkgObj.road_stops;
+        delete pkgObj.route_path;
+
+        return pkgObj;
+      })
+      .filter(Boolean) // remove null (wrong direction)
+      .sort((a, b) => a._matchScore - b._matchScore); // best matches first
+
+    // 🧹 Remove _matchScore from final response
+    validatedPackages.forEach((p) => delete p._matchScore);
+
+    if (!validatedPackages.length) {
+      return res.status(200).json({
+        status: 'success',
+        message: "No parcel found on this route",
+        data: []
+      });
+    }
+
     res.status(200).json({
       status: 'success',
-      count: packages.length,
+      count: validatedPackages.length,
       date_range: {
         from: dayStart,
         to: dayEnd
       },
       message: "Matching parcel found!",
-      data: packages,
+      data: validatedPackages,
     });
 
   } catch (error) {
     console.error("Error fetching packages:", error);
-    res.status(500).json({ status: 'fail', message: error.message,data:[] });
+    res.status(500).json({ status: 'fail', message: error.message, data:[] });
   }
 };
 

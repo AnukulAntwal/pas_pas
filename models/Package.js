@@ -31,6 +31,14 @@ const packageSchema = new mongoose.Schema(
         _id: false
       },
     ],
+    road_stops: [
+      {
+        city: { type: String },
+        lat: { type: Number },
+        long: { type: Number },
+        _id: false,
+      },
+    ],
 
     date_time: { type: Date, required: true },
 

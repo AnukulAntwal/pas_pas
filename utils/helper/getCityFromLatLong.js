@@ -138,7 +138,7 @@ const getRoadStops = async (startLat, startLong, endLat, endLong, apiKey) => {
     // Collect points every ~15km apart using cumulative distance
     const points = [];
     let cumDist = 0;
-    const INTERVAL_METERS = 15000; // every 15km = one potential stop
+    const INTERVAL_METERS = 8000; // every 15km = one potential stop
     let nextThreshold = INTERVAL_METERS;
 
     for (const step of steps) {

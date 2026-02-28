@@ -12,88 +12,203 @@ import {
 } from "../utils/helper/getCityFromLatLong.js";
 dotenv.config();
 
+// export const saveDeliveryService = async (req, res) => {
+//   try {
+//     const { start_lat, start_long, end_lat, end_long } = req.body;
+//     const googleApiKey = process.env.GOOGLE_MAPS_API_KEY;
+//     let route_path = [];
+
+//     // ✅ Step 1: Generate main route_path using Google Maps Directions API
+//     if (start_lat && start_long && end_lat && end_long) {
+//       const mainUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${start_lat},${start_long}&destination=${end_lat},${end_long}&key=${googleApiKey}`;
+//       const mainResponse = await axios.get(mainUrl);
+
+//       // 🔍 Log API response status for debugging
+//       if (mainResponse.data.status !== "OK") {
+//         console.error("⚠️ Google Directions API error:", mainResponse.data.status, mainResponse.data.error_message || "");
+//       }
+
+//       const mainSteps = mainResponse.data.routes[0]?.legs[0]?.steps || [];
+
+//       // ✅ Add start point first
+//       route_path.push({ lat: start_lat, long: start_long });
+
+//       // Collect route points
+//       mainSteps.forEach((step) => {
+//         route_path.push({
+//           lat: step.start_location.lat,
+//           long: step.start_location.lng,
+//         });
+//       });
+
+//       // Add final destination point
+//       route_path.push({ lat: end_lat, long: end_long });
+
+//       // ✅ Step 2: Add 20 km ahead from the destination
+//       const extendDistance = 20; // in km
+//       const earthRadius = 6371; // Earth radius in km
+
+//       // Calculate new lat/long for 20 km ahead
+//       const newLat = end_lat + (extendDistance / earthRadius) * (180 / Math.PI);
+//       const newLong =
+//         end_long +
+//         ((extendDistance / earthRadius) * (180 / Math.PI)) /
+//           Math.cos((end_lat * Math.PI) / 180);
+
+//       // Get the extra route from Google Maps API
+//       const extendUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${end_lat},${end_long}&destination=${newLat},${newLong}&key=${googleApiKey}`;
+//       const extendResponse = await axios.get(extendUrl);
+//       const extendSteps = extendResponse.data.routes[0]?.legs[0]?.steps || [];
+ 
+//       // Add the extended route steps
+//       extendSteps.forEach((step) => {
+//         route_path.push({
+//           lat: step.start_location.lat,
+//           long: step.start_location.lng,
+//         });
+//       });
+
+//       // Add the final extended point
+//       route_path.push({ lat: newLat, long: newLong });
+
+//       console.log(`✅ Route path generated: ${route_path.length} points (${mainSteps.length} from main route, ${extendSteps.length} from extension)`);
+//     }
+//     const road_stops = await getRoadStops(
+//       start_lat, start_long,
+//       end_lat, end_long,
+//       googleApiKey
+//     );
+//     const SAMPLE_EVERY = 4; // geocode every 4th point to save API calls
+//     const enriched = await Promise.all(
+//       route_path.map(async (point, i) => {
+//         if (i % SAMPLE_EVERY === 0) {
+//           const city = await getCityFromLatLong(
+//             point.lat,
+//             point.long,
+//             googleApiKey,
+//           );
+//           return { ...point, city };
+//         }
+//         return { ...point, city: null };
+//       }),
+//     );
+
+//     // Save with enriched route
+//     const newService = new DeliveryService({
+//       ...req.body,
+//       route_path: enriched,
+//       road_stops,
+//     });
+
+//     const savedService = await newService.save();
+
+//     res.status(200).json({
+//       status: "success",
+//       message: "Your service has been successfully published",
+//       data: savedService,
+//     });
+//   } catch (error) {
+//     console.error("Error saving delivery service:", error);
+//     res.status(500).json({
+//       status: "fail",
+//       message: error.message,
+//       data: [],
+//     });
+//   }
+// };
+
 export const saveDeliveryService = async (req, res) => {
   try {
     const { start_lat, start_long, end_lat, end_long } = req.body;
     const googleApiKey = process.env.GOOGLE_MAPS_API_KEY;
     let route_path = [];
 
-    // ✅ Step 1: Generate main route_path using Google Maps Directions API
     if (start_lat && start_long && end_lat && end_long) {
+
       const mainUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${start_lat},${start_long}&destination=${end_lat},${end_long}&key=${googleApiKey}`;
+
       const mainResponse = await axios.get(mainUrl);
 
-      // 🔍 Log API response status for debugging
       if (mainResponse.data.status !== "OK") {
-        console.error("⚠️ Google Directions API error:", mainResponse.data.status, mainResponse.data.error_message || "");
+        return res.status(400).json({
+          status: "fail",
+          message: "Google Directions API error",
+        });
       }
 
       const mainSteps = mainResponse.data.routes[0]?.legs[0]?.steps || [];
 
-      // ✅ Add start point first
+      // ✅ Start point
       route_path.push({ lat: start_lat, long: start_long });
 
-      // Collect route points
+      // ✅ Collect step end locations (better coverage)
       mainSteps.forEach((step) => {
         route_path.push({
-          lat: step.start_location.lat,
-          long: step.start_location.lng,
+          lat: step.end_location.lat,
+          long: step.end_location.lng,
         });
       });
 
-      // Add final destination point
-      route_path.push({ lat: end_lat, long: end_long });
+      // --------------------------------------------------
+      // ✅ CORRECT DIRECTION-BASED EXTENSION (NO EARTH MATH)
+      // --------------------------------------------------
 
-      // ✅ Step 2: Add 20 km ahead from the destination
-      const extendDistance = 20; // in km
-      const earthRadius = 6371; // Earth radius in km
+      if (route_path.length >= 2) {
+        const extendDistanceKm = 20; // how much ahead
+        const last = route_path[route_path.length - 1];
+        const secondLast = route_path[route_path.length - 2];
 
-      // Calculate new lat/long for 20 km ahead
-      const newLat = end_lat + (extendDistance / earthRadius) * (180 / Math.PI);
-      const newLong =
-        end_long +
-        ((extendDistance / earthRadius) * (180 / Math.PI)) /
-          Math.cos((end_lat * Math.PI) / 180);
+        const dx = last.lat - secondLast.lat;
+        const dy = last.long - secondLast.long;
 
-      // Get the extra route from Google Maps API
-      const extendUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${end_lat},${end_long}&destination=${newLat},${newLong}&key=${googleApiKey}`;
-      const extendResponse = await axios.get(extendUrl);
-      const extendSteps = extendResponse.data.routes[0]?.legs[0]?.steps || [];
- 
-      // Add the extended route steps
-      extendSteps.forEach((step) => {
-        route_path.push({
-          lat: step.start_location.lat,
-          long: step.start_location.lng,
-        });
-      });
+        const magnitude = Math.sqrt(dx * dx + dy * dy);
 
-      // Add the final extended point
-      route_path.push({ lat: newLat, long: newLong });
+        if (magnitude > 0) {
+          const scale = (extendDistanceKm / 111) / magnitude; 
+          // 1 degree ≈ 111 km approx
 
-      console.log(`✅ Route path generated: ${route_path.length} points (${mainSteps.length} from main route, ${extendSteps.length} from extension)`);
+          const newLat = last.lat + dx * scale;
+          const newLong = last.long + dy * scale;
+
+          route_path.push({
+            lat: newLat,
+            long: newLong,
+          });
+        }
+      }
+
+      console.log(`✅ Route path generated: ${route_path.length} points`);
     }
+
+    // ✅ Road stops (keep as is)
     const road_stops = await getRoadStops(
-      start_lat, start_long,
-      end_lat, end_long,
+      start_lat,
+      start_long,
+      end_lat,
+      end_long,
       googleApiKey
     );
-    const SAMPLE_EVERY = 4; // geocode every 4th point to save API calls
+
+    // --------------------------------------------------
+    // ✅ SMART CITY ENRICHMENT (better logic)
+    // --------------------------------------------------
+
+    const SAMPLE_EVERY = 4;
+
     const enriched = await Promise.all(
       route_path.map(async (point, i) => {
         if (i % SAMPLE_EVERY === 0) {
           const city = await getCityFromLatLong(
             point.lat,
             point.long,
-            googleApiKey,
+            googleApiKey
           );
           return { ...point, city };
         }
         return { ...point, city: null };
-      }),
+      })
     );
 
-    // Save with enriched route
     const newService = new DeliveryService({
       ...req.body,
       route_path: enriched,
@@ -107,6 +222,7 @@ export const saveDeliveryService = async (req, res) => {
       message: "Your service has been successfully published",
       data: savedService,
     });
+
   } catch (error) {
     console.error("Error saving delivery service:", error);
     res.status(500).json({
@@ -116,7 +232,6 @@ export const saveDeliveryService = async (req, res) => {
     });
   }
 };
-
 /**
  * GET /api/delivery-services/search
  * Example:

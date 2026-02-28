@@ -9,6 +9,73 @@ import {
 } from "../utils/helper/getCityFromLatLong.js";
 
 
+// export const savePackage = async (req, res) => {
+//   try {
+//     const { pickup_lat, pickup_long, drop_lat, drop_long } = req.body;
+//     const googleApiKey = process.env.GOOGLE_MAPS_API_KEY;
+//     const route_path = [];
+
+//     if (pickup_lat && pickup_long && drop_lat && drop_long) {
+//       // 1️⃣ Get main route steps
+//       const mainUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${pickup_lat},${pickup_long}&destination=${drop_lat},${drop_long}&key=${googleApiKey}`;
+//       const mainResponse = await axios.get(mainUrl);
+
+//       // 🔍 Log API response status for debugging
+//       if (mainResponse.data.status !== "OK") {
+//         console.error("⚠️ Google Directions API error (package):", mainResponse.data.status, mainResponse.data.error_message || "");
+//       }
+
+//       const mainSteps = mainResponse.data.routes[0]?.legs[0]?.steps || [];
+
+//       // ✅ Add pickup point first
+//       route_path.push({ lat: pickup_lat, long: pickup_long });
+
+//       mainSteps.forEach(step => {
+//         route_path.push({ lat: step.start_location.lat, long: step.start_location.lng });
+//       });
+//       route_path.push({ lat: drop_lat, long: drop_long }); // final drop point
+
+//       // 2️⃣ Add extra 20 km beyond drop
+//       const extendDistance = 20; // km
+//       const earthRadius = 6371; // km
+//       const newLat = drop_lat + (extendDistance / earthRadius) * (180 / Math.PI);
+//       const newLong = drop_long + (extendDistance / earthRadius) * (180 / Math.PI) / Math.cos((drop_lat * Math.PI) / 180);
+
+//       // Extended route steps
+//       const extendUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${drop_lat},${drop_long}&destination=${newLat},${newLong}&key=${googleApiKey}`;
+//       const extendResponse = await axios.get(extendUrl);
+//       const extendSteps = extendResponse.data.routes[0]?.legs[0]?.steps || [];
+
+//       extendSteps.forEach(step => {
+//         route_path.push({ lat: step.start_location.lat, long: step.start_location.lng });
+//       });
+//       route_path.push({ lat: newLat, long: newLong });
+
+//       console.log(`✅ Package route path: ${route_path.length} points (${mainSteps.length} from main route, ${extendSteps.length} from extension)`);
+//     }
+
+//     // ✅ Generate road_stops for intermediate city stops
+//     const road_stops = await getRoadStops(
+//       pickup_lat, pickup_long,
+//       drop_lat, drop_long,
+//       googleApiKey
+//     );
+
+//     // 3️⃣ Save package with route_path and road_stops
+//     const newPackage = new Package({ ...req.body, route_path, road_stops });
+//     const savedPackage = await newPackage.save();
+
+//     res.status(200).json({
+//       status: "success",
+//       message: "Package published successfully",
+//       data: savedPackage,
+//     });
+//   } catch (error) {
+//     console.error("Error saving package:", error);
+//     res.status(500).json({ status: "fail", message: error.message, data:[] });
+//   }
+// };
+
 export const savePackage = async (req, res) => {
   try {
     const { pickup_lat, pickup_long, drop_lat, drop_long } = req.body;
@@ -16,53 +83,81 @@ export const savePackage = async (req, res) => {
     const route_path = [];
 
     if (pickup_lat && pickup_long && drop_lat && drop_long) {
-      // 1️⃣ Get main route steps
+
+      // 1️⃣ Get main route from Google Directions
       const mainUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${pickup_lat},${pickup_long}&destination=${drop_lat},${drop_long}&key=${googleApiKey}`;
       const mainResponse = await axios.get(mainUrl);
 
-      // 🔍 Log API response status for debugging
       if (mainResponse.data.status !== "OK") {
-        console.error("⚠️ Google Directions API error (package):", mainResponse.data.status, mainResponse.data.error_message || "");
+        return res.status(400).json({
+          status: "fail",
+          message: "Google Directions API error",
+        });
       }
 
       const mainSteps = mainResponse.data.routes[0]?.legs[0]?.steps || [];
 
-      // ✅ Add pickup point first
+      // ✅ Add pickup first
       route_path.push({ lat: pickup_lat, long: pickup_long });
 
+      // ✅ Use step.end_location for better accuracy
       mainSteps.forEach(step => {
-        route_path.push({ lat: step.start_location.lat, long: step.start_location.lng });
+        route_path.push({
+          lat: step.end_location.lat,
+          long: step.end_location.lng
+        });
       });
-      route_path.push({ lat: drop_lat, long: drop_long }); // final drop point
 
-      // 2️⃣ Add extra 20 km beyond drop
-      const extendDistance = 20; // km
-      const earthRadius = 6371; // km
-      const newLat = drop_lat + (extendDistance / earthRadius) * (180 / Math.PI);
-      const newLong = drop_long + (extendDistance / earthRadius) * (180 / Math.PI) / Math.cos((drop_lat * Math.PI) / 180);
+      // --------------------------------------------------
+      // ✅ Direction-Based Extension (NO Earth Radius)
+      // --------------------------------------------------
 
-      // Extended route steps
-      const extendUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${drop_lat},${drop_long}&destination=${newLat},${newLong}&key=${googleApiKey}`;
-      const extendResponse = await axios.get(extendUrl);
-      const extendSteps = extendResponse.data.routes[0]?.legs[0]?.steps || [];
+      if (route_path.length >= 2) {
 
-      extendSteps.forEach(step => {
-        route_path.push({ lat: step.start_location.lat, long: step.start_location.lng });
-      });
-      route_path.push({ lat: newLat, long: newLong });
+        const extendDistanceKm = 20; // extend 20km ahead
 
-      console.log(`✅ Package route path: ${route_path.length} points (${mainSteps.length} from main route, ${extendSteps.length} from extension)`);
+        const last = route_path[route_path.length - 1];
+        const secondLast = route_path[route_path.length - 2];
+
+        const dx = last.lat - secondLast.lat;
+        const dy = last.long - secondLast.long;
+
+        const magnitude = Math.sqrt(dx * dx + dy * dy);
+
+        if (magnitude > 0) {
+
+          // 1 degree ≈ 111km approx
+          const scale = (extendDistanceKm / 111) / magnitude;
+
+          const newLat = last.lat + dx * scale;
+          const newLong = last.long + dy * scale;
+
+          route_path.push({
+            lat: newLat,
+            long: newLong,
+          });
+        }
+      }
+
+      console.log(`✅ Package route path generated: ${route_path.length} points`);
     }
 
-    // ✅ Generate road_stops for intermediate city stops
+    // ✅ Generate road stops
     const road_stops = await getRoadStops(
-      pickup_lat, pickup_long,
-      drop_lat, drop_long,
+      pickup_lat,
+      pickup_long,
+      drop_lat,
+      drop_long,
       googleApiKey
     );
 
-    // 3️⃣ Save package with route_path and road_stops
-    const newPackage = new Package({ ...req.body, route_path, road_stops });
+    // 3️⃣ Save package
+    const newPackage = new Package({
+      ...req.body,
+      route_path,
+      road_stops,
+    });
+
     const savedPackage = await newPackage.save();
 
     res.status(200).json({
@@ -70,13 +165,16 @@ export const savePackage = async (req, res) => {
       message: "Package published successfully",
       data: savedPackage,
     });
+
   } catch (error) {
     console.error("Error saving package:", error);
-    res.status(500).json({ status: "fail", message: error.message, data:[] });
+    res.status(500).json({
+      status: "fail",
+      message: error.message,
+      data: [],
+    });
   }
 };
-
-
 
 // export const getPackages = async (req, res) => {
 //   try {

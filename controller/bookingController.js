@@ -9,6 +9,8 @@ import Notification from "../models/Notification.js";
 import Booking from "../models/Booking.js";
 
 import moment from "moment";
+import moment from "moment-timezone";
+
 dotenv.config();
 
 export const bookServiceOrPackage = async (req, res) => {
@@ -935,7 +937,7 @@ export const updateDeliveryService = async (req, res) => {
         data: [],
       });
     }
-console.log("Incoming date_time:", req.body.date_time);
+// console.log("Incoming date_time:", req.body.date_time);
     const existingService = await DeliveryService.findById(service_id);
 
     if (!existingService) {
@@ -1044,6 +1046,19 @@ console.log("Incoming date_time:", req.body.date_time);
     }
 
     // ✅ Prepare update object safely
+    let dateTimeUTC;
+
+    if (date_time) {
+      const parsed = moment.tz(
+        date_time,
+        "YYYY-MM-DD HH:mm:ss",
+        "Asia/Kolkata"
+      );
+
+      if (parsed.isValid()) {
+        dateTimeUTC = parsed.utc().toDate();
+      }
+    }
     const updateData = {
       ...otherFields,
       ...(start_lat && { start_lat }),
@@ -1052,7 +1067,7 @@ console.log("Incoming date_time:", req.body.date_time);
       ...(end_long && { end_long }),
       ...(locationChanged && { route_path }),
       ...(locationChanged && { road_stops }),
-      ...(date_time && { date_time: new Date(date_time) }),
+      ...(dateTimeUTC && { date_time: dateTimeUTC }),
     };
 
     const updatedService = await DeliveryService.findByIdAndUpdate(

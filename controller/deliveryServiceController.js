@@ -209,10 +209,12 @@ export const saveDeliveryService = async (req, res) => {
       })
     );
 
+    const dateTimeUTC = new Date(req.body.date_time);
     const newService = new DeliveryService({
       ...req.body,
       route_path: enriched,
       road_stops,
+      date_time:dateTimeUTC,
     });
 
     const savedService = await newService.save();

@@ -862,32 +862,33 @@ const combined = [
       type: 1,
       user,
       created_at: r.createdAt
-        ? moment(r.createdAt).format("YYYY-MM-DD HH:mm:ss")
+        ? moment(r.createdAt).local().format("DD MMM YYYY, hh:mm A")
         : null,
       updated_at: r.updatedAt
-        ? moment(r.updatedAt).format("YYYY-MM-DD HH:mm:ss")
+        ? moment(r.updatedAt).local().format("DD MMM YYYY, hh:mm A")
         : null,
       date_time: r.date_time
-        ? moment(r.date_time).format("YYYY-MM-DD HH:mm:ss")
+        ? moment(r.date_time).local().format("DD MMM YYYY, hh:mm A")
         : null,
     };
-    delete formatted.createdAt; // 🧹 remove raw fields
+    delete formatted.createdAt;
     delete formatted.updatedAt;
     return formatted;
   }),
+
   ...packages.map((p) => {
     const formatted = {
       ...p,
       type: 0,
       user,
-      createdAt: p.createdAt
-        ? moment(p.createdAt).format("YYYY-MM-DD HH:mm:ss")
+      created_at: p.createdAt
+        ? moment(p.createdAt).local().format("DD MMM YYYY, hh:mm A")
         : null,
-      updatedAt: p.updatedAt
-        ? moment(p.updatedAt).format("YYYY-MM-DD HH:mm:ss")
+      updated_at: p.updatedAt
+        ? moment(p.updatedAt).local().format("DD MMM YYYY, hh:mm A")
         : null,
       date_time: p.date_time
-        ? moment(p.date_time).format("YYYY-MM-DD HH:mm:ss")
+        ? moment(p.date_time).local().format("DD MMM YYYY, hh:mm A")
         : null,
     };
     delete formatted.createdAt;
@@ -917,74 +918,27 @@ const combined = [
 
 export const updateDeliveryService = async (req, res) => {
   try {
-    // const { service_id } = req.query;
-    const {service_id, start_lat, start_long, end_lat, end_long, ...otherFields } = req.body || {};
+    const {
+      service_id,
+      start_lat,
+      start_long,
+      end_lat,
+      end_long,
+      date_time,
+      ...otherFields
+    } = req.body || {};
 
     if (!service_id) {
       return res.status(400).json({
         status: "fail",
-        message: "Missing service_id in query",
+        message: "Missing service_id",
         data: [],
       });
     }
 
-    const googleApiKey = process.env.GOOGLE_MAPS_API_KEY;
-    let route_path = [];
+    const existingService = await DeliveryService.findById(service_id);
 
-    // ✅ Recalculate route only if coordinates are updated
-    if (start_lat && start_long && end_lat && end_long) {
-      const mainUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${start_lat},${start_long}&destination=${end_lat},${end_long}&key=${googleApiKey}`;
-      const mainResponse = await axios.get(mainUrl);
-      const mainSteps = mainResponse.data.routes[0]?.legs[0]?.steps || [];
-
-      mainSteps.forEach((step) => {
-        route_path.push({
-          lat: step.start_location.lat,
-          long: step.start_location.lng,
-        });
-      });
-      route_path.push({ lat: end_lat, long: end_long });
-
-      // ➕ Extend route by 20 km beyond end location
-      const extendDistance = 20;
-      const earthRadius = 6371;
-      const newLat = end_lat + (extendDistance / earthRadius) * (180 / Math.PI);
-      const newLong =
-        end_long +
-        ((extendDistance / earthRadius) * (180 / Math.PI)) /
-          Math.cos((end_lat * Math.PI) / 180);
-
-      const extendUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${end_lat},${end_long}&destination=${newLat},${newLong}&key=${googleApiKey}`;
-      const extendResponse = await axios.get(extendUrl);
-      const extendSteps = extendResponse.data.routes[0]?.legs[0]?.steps || [];
-
-      extendSteps.forEach((step) => {
-        route_path.push({
-          lat: step.start_location.lat,
-          long: step.start_location.lng,
-        });
-      });
-      route_path.push({ lat: newLat, long: newLong });
-    }
-
-    // ✅ Prepare dynamic update object
-    const updateData = {
-      ...otherFields,
-      ...(start_lat && { start_lat }),
-      ...(start_long && { start_long }),
-      ...(end_lat && { end_lat }),
-      ...(end_long && { end_long }),
-      ...(route_path.length > 0 && { route_path }),
-    };
-
-    console.log("🟢 Update Data:", updateData);
-
-    // ✅ Update the delivery service
-    const updatedService = await DeliveryService.findByIdAndUpdate(service_id, updateData, {
-      new: true,
-    });
-
-    if (!updatedService) {
+    if (!existingService) {
       return res.status(404).json({
         status: "fail",
         message: "Delivery service not found",
@@ -992,14 +946,130 @@ export const updateDeliveryService = async (req, res) => {
       });
     }
 
-    res.status(200).json({
+    const googleApiKey = process.env.GOOGLE_MAPS_API_KEY;
+
+    let route_path = existingService.route_path;
+    let road_stops = existingService.road_stops;
+
+    // ✅ Only recalculate if location changed
+    const locationChanged =
+      start_lat &&
+      start_long &&
+      end_lat &&
+      end_long &&
+      (
+        start_lat !== existingService.start_lat ||
+        start_long !== existingService.start_long ||
+        end_lat !== existingService.end_lat ||
+        end_long !== existingService.end_long
+      );
+
+    if (locationChanged) {
+      route_path = [];
+
+      const mainUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${start_lat},${start_long}&destination=${end_lat},${end_long}&key=${googleApiKey}`;
+
+      const mainResponse = await axios.get(mainUrl);
+
+      if (mainResponse.data.status !== "OK") {
+        return res.status(400).json({
+          status: "fail",
+          message: "Google Directions API error",
+        });
+      }
+
+      const mainSteps =
+        mainResponse.data.routes[0]?.legs[0]?.steps || [];
+
+      // ✅ Start point
+      route_path.push({ lat: start_lat, long: start_long });
+
+      // ✅ Collect step end locations
+      mainSteps.forEach((step) => {
+        route_path.push({
+          lat: step.end_location.lat,
+          long: step.end_location.lng,
+        });
+      });
+
+      // ✅ Direction based extension (same as save)
+      if (route_path.length >= 2) {
+        const extendDistanceKm = 20;
+        const last = route_path[route_path.length - 1];
+        const secondLast = route_path[route_path.length - 2];
+
+        const dx = last.lat - secondLast.lat;
+        const dy = last.long - secondLast.long;
+
+        const magnitude = Math.sqrt(dx * dx + dy * dy);
+
+        if (magnitude > 0) {
+          const scale = (extendDistanceKm / 111) / magnitude;
+
+          const newLat = last.lat + dx * scale;
+          const newLong = last.long + dy * scale;
+
+          route_path.push({
+            lat: newLat,
+            long: newLong,
+          });
+        }
+      }
+
+      // ✅ Recalculate road stops
+      road_stops = await getRoadStops(
+        start_lat,
+        start_long,
+        end_lat,
+        end_long,
+        googleApiKey
+      );
+
+      // ✅ City enrichment (same logic as save)
+      const SAMPLE_EVERY = 4;
+
+      route_path = await Promise.all(
+        route_path.map(async (point, i) => {
+          if (i % SAMPLE_EVERY === 0) {
+            const city = await getCityFromLatLong(
+              point.lat,
+              point.long,
+              googleApiKey
+            );
+            return { ...point, city };
+          }
+          return { ...point, city: null };
+        })
+      );
+    }
+
+    // ✅ Prepare update object safely
+    const updateData = {
+      ...otherFields,
+      ...(start_lat && { start_lat }),
+      ...(start_long && { start_long }),
+      ...(end_lat && { end_lat }),
+      ...(end_long && { end_long }),
+      ...(locationChanged && { route_path }),
+      ...(locationChanged && { road_stops }),
+      ...(date_time && { date_time: new Date(date_time) }),
+    };
+
+    const updatedService = await DeliveryService.findByIdAndUpdate(
+      service_id,
+      updateData,
+      { new: true }
+    );
+
+    return res.status(200).json({
       status: "success",
       message: "Delivery service updated successfully",
       data: updatedService,
     });
+
   } catch (error) {
     console.error("Error updating delivery service:", error);
-    res.status(500).json({
+    return res.status(500).json({
       status: "fail",
       message: error.message,
       data: [],

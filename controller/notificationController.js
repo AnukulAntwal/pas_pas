@@ -1,4 +1,5 @@
 import Notification from "../models/Notification.js";
+import moment from "moment-timezone";
 import Chat from "../models/Chat.js";
 
 export const sendMessageNotification = async (req, res) => {
@@ -78,7 +79,9 @@ export const getNotifications = async (req, res) => {
         : "Unknown",
     sender_phone: notif.sender_id?.phone_number || "",
     is_read: notif.is_read,
-    created_time: notif.createdAt,
+    created_time: moment(notif.createdAt)
+    .tz("Asia/Kolkata")
+    .format("DD MMM YYYY, hh:mm A"),
     }));
 
 

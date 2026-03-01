@@ -1,4 +1,4 @@
-import moment from "moment"; // ← Add this
+import moment from "moment-timezone";
 import dotenv from "dotenv";
 import axios from "axios";
 import DeliveryService from "../models/DeliveryService.js";
@@ -411,7 +411,7 @@ export const getServices = async (req, res) => {
       .populate("uid", "first_name last_name email phone_number")
       .populate("booked_by", "first_name last_name")
       .sort({ date_time: 1 });
-
+    
     if (!rides.length) {
       return res.status(200).json({
         status: "success",
@@ -461,6 +461,15 @@ export const getServices = async (req, res) => {
     // 🧹 Remove _matchScore from final response
     validatedRides.forEach((r) => delete r._matchScore);
 
+    const formatToIST = (date) =>
+      moment(date).tz("Asia/Kolkata").format("DD MMM YYYY, hh:mm A");
+
+    validatedRides.forEach((ride) => {
+      ride.date_time = formatToIST(ride.date_time);
+      ride.createdAt = formatToIST(ride.createdAt);
+      ride.updatedAt = formatToIST(ride.updatedAt);
+      ride.expiresAt = formatToIST(ride.expiresAt);
+    });
     if (!validatedRides.length) {
       return res.status(200).json({
         status: "success",

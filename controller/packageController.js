@@ -1,6 +1,6 @@
 import axios from "axios";
 import Package from "../models/Package.js";
-import moment from "moment";
+import moment from "moment-timezone";
 import {
   getRoadStops,
   filterStopsBetween,
@@ -354,7 +354,18 @@ export const getPackages = async (req, res) => {
 
     // 🧹 Remove _matchScore from final response
     validatedPackages.forEach((p) => delete p._matchScore);
+      const formatToIST = (date) =>
+      moment(date).tz("Asia/Kolkata").format("DD MMM YYYY, hh:mm A");
 
+    validatedPackages.forEach((pkg) => {
+      pkg.date_time = formatToIST(pkg.date_time);
+      pkg.createdAt = formatToIST(pkg.createdAt);
+      pkg.updatedAt = formatToIST(pkg.updatedAt);
+
+      if (pkg.expiresAt) {
+        pkg.expiresAt = formatToIST(pkg.expiresAt);
+      }
+    });
     if (!validatedPackages.length) {
       return res.status(200).json({
         status: 'success',

@@ -1095,7 +1095,7 @@ export const updateDeliveryService = async (req, res) => {
 export const updatePackage = async (req, res) => {
   try {
     // const { package_id } = req.query;
-    const {package_id, pickup_lat, pickup_long, drop_lat, drop_long, ...otherFields } = req.body || {};
+    const {package_id, pickup_lat, pickup_long, drop_lat, drop_long,date_time, ...otherFields } = req.body || {};
 
     if (!package_id) {
       return res.status(400).json({
@@ -1142,7 +1142,19 @@ export const updatePackage = async (req, res) => {
       });
       route_path.push({ lat: newLat, long: newLong });
     }
+    
+    let dateTimeUTC;
+    if (date_time) {
+      const parsed = moment.tz(
+        date_time,
+        "YYYY-MM-DD HH:mm:ss",
+        "Asia/Kolkata"
+      );
 
+      if (parsed.isValid()) {
+        dateTimeUTC = parsed.utc().toDate();
+      }
+    }
     // ✅ Prepare dynamic update object
     const updateData = {
       ...otherFields, // e.g. package_type, price, etc.
@@ -1150,6 +1162,7 @@ export const updatePackage = async (req, res) => {
       ...(pickup_long && { pickup_long }),
       ...(drop_lat && { drop_lat }),
       ...(drop_long && { drop_long }),
+      ...(dateTimeUTC && { date_time: dateTimeUTC }),
       ...(route_path.length > 0 && { route_path }),
     };
 

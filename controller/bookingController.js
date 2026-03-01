@@ -862,13 +862,13 @@ const combined = [
       type: 1,
       user,
       created_at: r.createdAt
-        ? moment(r.createdAt).local().format("DD MMM YYYY, hh:mm A")
+        ? moment(r.createdAt).utc().utcOffset("+05:30").format("DD MMM YYYY, hh:mm A")
         : null,
       updated_at: r.updatedAt
-        ? moment(r.updatedAt).local().format("DD MMM YYYY, hh:mm A")
+        ? moment(r.updatedAt).utc().utcOffset("+05:30").format("DD MMM YYYY, hh:mm A")
         : null,
       date_time: r.date_time
-        ? moment(r.date_time).local().format("DD MMM YYYY, hh:mm A")
+        ? moment(r.date_time).utc().utcOffset("+05:30").format("DD MMM YYYY, hh:mm A")
         : null,
     };
     delete formatted.createdAt;
@@ -882,13 +882,13 @@ const combined = [
       type: 0,
       user,
       created_at: p.createdAt
-        ? moment(p.createdAt).local().format("DD MMM YYYY, hh:mm A")
+        ? moment(p.createdAt).utc().utcOffset("+05:30").format("DD MMM YYYY, hh:mm A")
         : null,
       updated_at: p.updatedAt
-        ? moment(p.updatedAt).local().format("DD MMM YYYY, hh:mm A")
+        ? moment(p.updatedAt).utc().utcOffset("+05:30").format("DD MMM YYYY, hh:mm A")
         : null,
       date_time: p.date_time
-        ? moment(p.date_time).local().format("DD MMM YYYY, hh:mm A")
+        ? moment(p.date_time).utc().utcOffset("+05:30").format("DD MMM YYYY, hh:mm A")
         : null,
     };
     delete formatted.createdAt;

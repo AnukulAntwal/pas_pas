@@ -270,6 +270,7 @@ export const editProfile = async (req, res) => {
       first_name,
       last_name,
       email,
+      profile_image,
       phone_number,
       aadhar_number,
       pan_number,
@@ -373,6 +374,31 @@ export const editProfile = async (req, res) => {
       user.aadhar_back_image = aadharBack[0].filename;
       user.is_valid_adhar = 0;
       user.aadhar_resubmit_count += 1; // ✅ increment on image resubmit
+    }
+        /* ================= BASIC PROFILE FIELDS ================= */
+
+    if (first_name !== undefined) {
+      user.first_name = first_name;
+    }
+
+    if (last_name !== undefined) {
+      user.last_name = last_name;
+    }
+
+    if (address !== undefined) {
+      user.address = address;
+    }
+
+    if (city !== undefined) {
+      user.city = city;
+    }
+
+    if (state !== undefined) {
+      user.state = state;
+    }
+
+    if (pincode !== undefined) {
+      user.pincode = pincode;
     }
     const updatedUser = await user.save();
 

@@ -9,7 +9,6 @@ import Notification from "../models/Notification.js";
 import Booking from "../models/Booking.js";
 
 import moment from "moment";
-import moment from "moment-timezone";
 
 dotenv.config();
 

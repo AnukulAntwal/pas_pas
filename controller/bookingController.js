@@ -935,7 +935,7 @@ export const updateDeliveryService = async (req, res) => {
         data: [],
       });
     }
-
+console.log("Incoming date_time:", req.body.date_time);
     const existingService = await DeliveryService.findById(service_id);
 
     if (!existingService) {

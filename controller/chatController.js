@@ -378,11 +378,12 @@ export const getConversationList = async (req, res) => {
             "start_location end_location date_time"
           );
         }
-        const formatToIST = (date) =>
-        moment(date).tz("Asia/Kolkata").format("DD MMM YYYY, hh:mm A");
-        const created_time = formatToIST(conv.created_time);
-        const updated_time = formatToIST(conv.updated_time);
-
+        // const formatToIST = (date) =>
+        // moment(date).tz("Asia/Kolkata").format("DD MMM YYYY, hh:mm A");
+        // const created_time = formatToIST(conv.created_time);
+        // const updated_time = formatToIST(conv.updated_time);
+        const created_time = conv.created_time;
+        const updated_time = conv.updated_time;
         return {
           conversation_id: conv._id,
           conversation_for: conv.conversation_for,

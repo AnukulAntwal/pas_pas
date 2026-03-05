@@ -355,7 +355,8 @@ export const getServices = async (req, res) => {
         data: [],
       });
     }
-
+    console.log(req.body);
+    
     const startLat = parseFloat(start_lat);
     const startLong = parseFloat(start_long);
     const endLat = parseFloat(end_lat);
@@ -367,6 +368,7 @@ export const getServices = async (req, res) => {
 
     // ✅ Date range: selected date → next 7 days
    const searchDate = moment.tz(date_time, "YYYY-MM-DD", "Asia/Kolkata");
+console.log(searchDate);
 
 if (!searchDate.isValid()) {
   return res.status(400).json({

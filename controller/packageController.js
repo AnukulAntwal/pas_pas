@@ -152,10 +152,12 @@ export const savePackage = async (req, res) => {
     );
 
     // 3️⃣ Save package
+     const dateTimeUTC = new Date(req.body.date_time);
     const newPackage = new Package({
       ...req.body,
       route_path,
       road_stops,
+      date_time: dateTimeUTC
     });
 
     const savedPackage = await newPackage.save();
@@ -261,9 +263,20 @@ export const getPackages = async (req, res) => {
     const routeRange = 0.15;  // ~15 km for route_path match
 
     // ✅ Date range: selected date → next 7 days
-    const searchDate = moment(date_time);
-    const dayStart = searchDate.clone().startOf("day").toDate();
-    const dayEnd = searchDate.clone().add(7, "days").endOf("day").toDate();
+   const searchDate = moment.tz(
+     date_time,
+     "YYYY-MM-DD HH:mm:ss",
+     "Asia/Kolkata"
+   );
+   if (!searchDate.isValid()) {
+  return res.status(400).json({
+    status: "fail",
+    message: "Invalid date format. Use YYYY-MM-DD HH:mm:ss",
+    data: [],
+  });
+}
+  const dayStart = searchDate.clone().startOf("day").utc().toDate();
+const dayEnd = searchDate.clone().add(7, "days").endOf("day").utc().toDate();
 
     // ✅ Fetch WITH route_path so we can validate direction post-query
     const packages = await Package.find({

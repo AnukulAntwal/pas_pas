@@ -389,13 +389,13 @@ export const getServices = async (req, res) => {
       .utc()
       .toDate();
     console.log('daystart-  ',dayStart);
-    console.log('dayEnd-  ',dayEnd);
 
     
     const dayEnd = moment.tz(date, "YYYY-MM-DD", "Asia/Kolkata")
       .endOf("day")
       .utc()
       .toDate();
+    console.log('dayEnd-  ',dayEnd);
 
     // ✅ Fetch WITH route_path so we can validate direction post-query
     const rides = await DeliveryService.find({

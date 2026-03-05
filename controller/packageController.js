@@ -263,17 +263,19 @@ export const getPackages = async (req, res) => {
     const routeRange = 0.15;  // ~15 km for route_path match
 
     // ✅ Date range: selected date → next 7 days
-   const date = req.body.date_time;
+   const searchDate = moment.tz(date_time, "YYYY-MM-DD", "Asia/Kolkata");
+   console.log(searchDate);
    
-       const dayStart = moment.tz(date, "YYYY-MM-DD", "Asia/Kolkata")
-         .startOf("day")
-         .utc()
-         .toDate();
+   if (!searchDate.isValid()) {
+     return res.status(400).json({
+       status: "fail",
+       message: "Invalid date format",
+       data: [],
+     });
+   }
    
-       const dayEnd = moment.tz(date, "YYYY-MM-DD", "Asia/Kolkata")
-         .endOf("day")
-         .utc()
-         .toDate();
+   const dayStart = searchDate.clone().startOf("day").utc().toDate();
+   const dayEnd = searchDate.clone().add(7, "days").endOf("day").utc().toDate();
     // ✅ Fetch WITH route_path so we can validate direction post-query
     const packages = await Package.find({
       is_available: 1,

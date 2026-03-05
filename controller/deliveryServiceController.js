@@ -368,23 +368,24 @@ export const getServices = async (req, res) => {
     // ✅ Date range: selected date → next 7 days
     console.log(date_time);
     
-  const searchDate = moment.tz(
-  date_time,
-  "YYYY-MM-DD HH:mm:ss",
-  "Asia/Kolkata"
-);
+//   const searchDate = moment.tz(
+//   date_time,
+//   "YYYY-MM-DD HH:mm:ss",
+//   "Asia/Kolkata"
+// );
 
-if (!searchDate.isValid()) {
-  return res.status(400).json({
-    status: "fail",
-    message: "Invalid date format. Use YYYY-MM-DD HH:mm:ss",
-    data: [],
-  });
-}
+// if (!searchDate.isValid()) {
+//   return res.status(400).json({
+//     status: "fail",
+//     message: "Invalid date format. Use YYYY-MM-DD HH:mm:ss",
+//     data: [],
+//   });
+// }
 
-// convert to UTC for MongoDB query
+const searchDate = moment.tz(date_time, "YYYY-MM-DD", "Asia/Kolkata");
+
 const dayStart = searchDate.clone().startOf("day").utc().toDate();
-const dayEnd = searchDate.clone().add(7, "days").endOf("day").utc().toDate();
+const dayEnd = searchDate.clone().endOf("day").utc().toDate();
 
     // ✅ Fetch WITH route_path so we can validate direction post-query
     const rides = await DeliveryService.find({

@@ -366,11 +366,21 @@ export const getServices = async (req, res) => {
     const routeRange = 0.15;  // ~15 km for route_path match
 
     // ✅ Date range: selected date → next 7 days
-    const searchDate = moment(date_time, "YYYY-MM-DD", true);
-    const dayStart = searchDate.clone().startOf("day").toDate();
-    const dayEnd = searchDate.clone().add(7, "days").endOf("day").toDate();
-    console.log(dayStart);
-    console.log(dayEnd);
+   const searchDate = moment.tz(date_time, "YYYY-MM-DD", "Asia/Kolkata");
+
+if (!searchDate.isValid()) {
+  return res.status(400).json({
+    status: "fail",
+    message: "Invalid date format",
+    data: [],
+  });
+}
+
+const dayStart = searchDate.clone().startOf("day").utc().toDate();
+const dayEnd = searchDate.clone().add(7, "days").endOf("day").utc().toDate();
+
+console.log("dayStart:", dayStart);
+console.log("dayEnd:", dayEnd);
     
     
     // ✅ Fetch WITH route_path so we can validate direction post-query

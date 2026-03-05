@@ -493,6 +493,8 @@ console.log("dayEnd:", dayEnd);
       });
     }
 
+    console.log(validatedRides);
+    
     return res.status(200).json({
       status: "success",
       count: validatedRides.length,

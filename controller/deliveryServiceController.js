@@ -369,7 +369,10 @@ export const getServices = async (req, res) => {
     const searchDate = moment(date_time, "YYYY-MM-DD", true);
     const dayStart = searchDate.clone().startOf("day").toDate();
     const dayEnd = searchDate.clone().add(7, "days").endOf("day").toDate();
-
+    console.log(dayStart);
+    console.log(dayEnd);
+    
+    
     // ✅ Fetch WITH route_path so we can validate direction post-query
     const rides = await DeliveryService.find({
       is_available: 1,

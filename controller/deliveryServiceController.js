@@ -388,7 +388,10 @@ export const getServices = async (req, res) => {
       .startOf("day")
       .utc()
       .toDate();
+    console.log('daystart-  ',dayStart);
+    console.log('dayEnd-  ',dayEnd);
 
+    
     const dayEnd = moment.tz(date, "YYYY-MM-DD", "Asia/Kolkata")
       .endOf("day")
       .utc()

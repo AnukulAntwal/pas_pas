@@ -382,10 +382,17 @@ export const getServices = async (req, res) => {
 //   });
 // }
 
-const searchDate = moment.tz(date_time, "YYYY-MM-DD", "Asia/Kolkata");
+    const date = req.body.date_time;
 
-const dayStart = searchDate.clone().startOf("day").utc().toDate();
-const dayEnd = searchDate.clone().endOf("day").utc().toDate();
+    const dayStart = moment.tz(date, "YYYY-MM-DD", "Asia/Kolkata")
+      .startOf("day")
+      .utc()
+      .toDate();
+
+    const dayEnd = moment.tz(date, "YYYY-MM-DD", "Asia/Kolkata")
+      .endOf("day")
+      .utc()
+      .toDate();
 
     // ✅ Fetch WITH route_path so we can validate direction post-query
     const rides = await DeliveryService.find({

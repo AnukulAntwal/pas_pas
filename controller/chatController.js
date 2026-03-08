@@ -423,12 +423,14 @@ export const markMessagesAsRead = async (req, res) => {
     if (!conversation_id || !receiver_id) {
       return res.status(400).json({ status: "fail", message: "conversation_id and receiver_id required",data:[] });
     }
+    console.log(conversation_id,'-', receiver_id);
 
     const result = await Chat.updateMany(
       { conversation_id, receiver_id, is_read: false, status: "active" },
       { $set: { is_read: 1, unread_count: 0 } }
     );
-
+    console.log(result);
+    
     res.status(200).json({
       status: "success",
       message: "Messages marked as read",

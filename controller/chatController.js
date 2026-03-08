@@ -29,6 +29,8 @@ export const sendMessage = async (req, res) => {
         data: [],
     });
     }
+
+    console.log(req.body);
     // ✅ Generate new conversation_id if not provided
     let finalConversationId = conversation_id;
     if (!finalConversationId) {
@@ -44,7 +46,8 @@ export const sendMessage = async (req, res) => {
       message,
       unread_count: 1,
     });
-
+    console.log(newMessage);
+    
     await newMessage.save();
       // ✅ Create new notification
     const newNotification = await Notification.create({
@@ -55,7 +58,8 @@ export const sendMessage = async (req, res) => {
       message_text: message,
       type: "message",
     });
-
+    console.log('Notification create - ', newNotification);
+    
     res.status(200).json({
       status: "success",
       message: "Message sent successfully",

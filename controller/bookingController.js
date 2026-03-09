@@ -326,52 +326,60 @@ export const cancelBookingByReference = async (req, res) => {
 
 export const getMyBookings = async (req, res) => {
   try {
+
     const userId = req.user._id;
     const todayStart = moment().startOf("day").toDate();
 
     const bookings = await Booking.find({
-      booked_by: userId,
       is_booked: 1
     })
       .sort({ createdAt: -1 })
       .lean();
 
-    if (!bookings.length) {
-      return res.status(200).json({
-        status: "success",
-        message: "No bookings found",
-        data: []
-      });
-    }
-
     const result = [];
 
     for (const booking of bookings) {
 
-      const bookedByUser = await User.findById(booking.booked_by)
-        .select("first_name last_name phone_number email")
-        .lean();
-
       let referenceOwner = null;
       let referenceDetails = null;
-      let referenceDateTime = null;
+      let showUser = null;
+      let bookingRole = null;
 
       // =========================
       // DELIVERY SERVICE
       // =========================
       if (booking.type === 0) {
+
         const service = await DeliveryService.findById(booking.reference_id)
           .select("uid start_location end_location price date_time")
           .lean();
 
-        // ❌ skip past services
         if (!service || service.date_time < todayStart) continue;
-
-        referenceDateTime = service.date_time;
 
         referenceOwner = await User.findById(service.uid)
           .select("first_name last_name phone_number email")
           .lean();
+
+        const bookedByUser = await User.findById(booking.booked_by)
+          .select("first_name last_name phone_number email")
+          .lean();
+
+        // identify which user to show
+        if (booking.booked_by.toString() === userId.toString()) {
+
+          // maine service book ki
+          showUser = referenceOwner;
+          bookingRole = "booked_by_me";
+
+        } else if (service.uid.toString() === userId.toString()) {
+
+          // meri service kisi ne book ki
+          showUser = bookedByUser;
+          bookingRole = "booked_from_me";
+
+        } else {
+          continue;
+        }
 
         referenceDetails = {
           reference_id: service._id,
@@ -379,7 +387,7 @@ export const getMyBookings = async (req, res) => {
           start_location: service.start_location,
           end_location: service.end_location,
           price: service.price,
-          date_time: moment(service.date_time).format("YYYY-MM-DD HH:mm:ss")
+          date_time: moment(service.date_time).tz("Asia/Kolkata").format("DD MMM YYYY, hh:mm A")
         };
       }
 
@@ -387,18 +395,36 @@ export const getMyBookings = async (req, res) => {
       // PACKAGE
       // =========================
       if (booking.type === 1) {
+
         const parcel = await Package.findById(booking.reference_id)
           .select("uid pickup_location drop_location price date_time")
           .lean();
 
-        // ❌ skip past packages
         if (!parcel || parcel.date_time < todayStart) continue;
-
-        referenceDateTime = parcel.date_time;
 
         referenceOwner = await User.findById(parcel.uid)
           .select("first_name last_name phone_number email")
           .lean();
+
+        const bookedByUser = await User.findById(booking.booked_by)
+          .select("first_name last_name phone_number email")
+          .lean();
+
+        if (booking.booked_by.toString() === userId.toString()) {
+
+          // maine parcel book ki
+          showUser = referenceOwner;
+          bookingRole = "booked_by_me";
+
+        } else if (parcel.uid.toString() === userId.toString()) {
+
+          // mera parcel kisi ne book kiya
+          showUser = bookedByUser;
+          bookingRole = "booked_from_me";
+
+        } else {
+          continue;
+        }
 
         referenceDetails = {
           reference_id: parcel._id,
@@ -406,7 +432,7 @@ export const getMyBookings = async (req, res) => {
           pickup_location: parcel.pickup_location,
           drop_location: parcel.drop_location,
           price: parcel.price,
-          date_time: moment(parcel.date_time).format("YYYY-MM-DD HH:mm:ss")
+          date_time: moment(parcel.date_time).tz("Asia/Kolkata").format("DD MMM YYYY, hh:mm A")
         };
       }
 
@@ -415,21 +441,12 @@ export const getMyBookings = async (req, res) => {
         reference_id: booking.reference_id,
         type: booking.type,
         booking_type: booking.booking_type,
-        is_booked: booking.is_booked,
         status: booking.status,
         cancel_reason: booking.cancel_reason || "",
-        booked_by: bookedByUser,
-        reference_owner: referenceOwner,
+        booking_role: bookingRole,
+        user_details: showUser,
         reference_details: referenceDetails,
-        created_at: moment(booking.createdAt).format("YYYY-MM-DD HH:mm:ss")
-      });
-    }
-    // 🔴 If bookings exist but filtered out
-    if (!result.length) {
-      return res.status(200).json({
-        status: "success",
-        message: "No active bookings found",
-        data: []
+        created_at: moment(booking.createdAt).tz("Asia/Kolkata").format("DD MMM YYYY, hh:mm A")
       });
     }
 
@@ -440,11 +457,13 @@ export const getMyBookings = async (req, res) => {
     });
 
   } catch (error) {
+
     return res.status(500).json({
       status: "fail",
       message: error.message,
       data: []
     });
+
   }
 };
 

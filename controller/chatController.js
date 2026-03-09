@@ -78,7 +78,9 @@ export const sendMessage = async (req, res) => {
 export const getMessages = async (req, res) => {
   try {
     const { conversation_id, user_id, is_read } = req.query;
-
+    console.log(conversation_id);
+    console.log(user_id);
+    
     if (!conversation_id || !user_id) {
       return res.status(400).json({
         status: "fail",

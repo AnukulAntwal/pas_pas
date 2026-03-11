@@ -69,12 +69,13 @@ export const loginController = async (req, res) => {
       });
     }
     // ✅ Step 2.1: Check if user is blocked
-
+   const message = user.default_message?.trim() || 
+ "Your account has been blocked due to unverified documents. Please contact paspaspackage@gmail.com";
+    
     if (user.is_blocked === 1) {
       return res.status(403).json({
         status: "fail",
-        message:
-          "Your account has been blocked due to unverified documents. Please contact paspaspackage@gmail.com",
+        message:message,
         data: [],
       });
     }

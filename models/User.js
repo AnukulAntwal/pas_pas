@@ -36,6 +36,9 @@ const userSchema = new mongoose.Schema(
     device_type: {
       type: String,
     },
+    default_message: {
+      type: String,
+    },
     device_token: {
       type: String,
     },

@@ -22,7 +22,7 @@ export default async function verifyCustomToken(req, res, next) {
     if (!user) {
       return res.status(401).json({
         status: "fail",
-        message: "Invalid or expired session. Please log in again.",
+        message: "You’ve been signed out. Please sign in again to continue.",
         auth: false,
       });
     }

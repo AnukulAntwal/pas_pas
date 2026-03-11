@@ -388,8 +388,8 @@ export const getConversationList = async (req, res) => {
         // moment(date).tz("Asia/Kolkata").format("DD MMM YYYY, hh:mm A");
         // const created_time = formatToIST(conv.created_time);
         // const updated_time = formatToIST(conv.updated_time);
-        const created_time = conv.created_time;
-        const updated_time = conv.updated_time;
+        // const created_time = conv.created_time;
+        // const updated_time = conv.updated_time;
         return {
           conversation_id: conv._id,
           conversation_for: conv.conversation_for,
@@ -397,8 +397,8 @@ export const getConversationList = async (req, res) => {
           last_message: conv.last_message,
           unread_count: conv.unread_count,
           is_read: conv.is_read,
-          created_time,
-          updated_time,
+          created_time: moment(conv.created_time).tz("Asia/Kolkata").format("DD MMM YYYY, hh:mm A"),
+          updated_time: moment(conv.updated_time).tz("Asia/Kolkata").format("DD MMM YYYY, hh:mm A"),
           reference_details,
         };
       })

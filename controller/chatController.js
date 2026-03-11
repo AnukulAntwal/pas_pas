@@ -424,7 +424,7 @@ export const getConversationList = async (req, res) => {
 
 export const markMessagesAsRead = async (req, res) => {
   try {
-    const { conversation_id, receiver_id } = req.body;
+    const { conversation_id, receiver_id, conversation_for } = req.body;
 
     if (!conversation_id || !receiver_id) {
       return res.status(400).json({ status: "fail", message: "conversation_id and receiver_id required",data:[] });
@@ -432,7 +432,7 @@ export const markMessagesAsRead = async (req, res) => {
     console.log(conversation_id,'-', receiver_id);
 
     const result = await Chat.updateMany(
-      { conversation_id, receiver_id, is_read: false, status: "active" },
+      { conversation_id, receiver_id,conversation_for,is_read: false, status: "active" },
       { $set: { is_read: 1, unread_count: 0 } }
     );
     console.log(result);

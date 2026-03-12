@@ -433,7 +433,7 @@ export const markMessagesAsRead = async (req, res) => {
     console.log(conversation_id,'-', receiver_id);
 
     const result = await Chat.updateMany(
-      { conversation_id, receiver_id,is_read: false, status: "active" },
+      { conversation_id, receiver_id,is_read: 0, status: "active" },
       { $set: { is_read: 1, unread_count: 0 } }
     );
     console.log(result);

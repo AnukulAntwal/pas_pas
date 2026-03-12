@@ -122,18 +122,18 @@ export const getMessages = async (req, res) => {
     // 🟢 Step 3: Get reference details
     const firstMsg = messages[0];
     let refDetails = null;
-    let reference_type = "";
+    let reference_type = null;
 
     if (firstMsg.conversation_for === 0) {
       refDetails = await Package.findById(firstMsg.reference_id).select(
         "pickup_location drop_location package_type price"
       );
-      reference_type = "package";
+      reference_type = 1;
     } else if (firstMsg.conversation_for === 1) {
       refDetails = await Ride.findById(firstMsg.reference_id).select(
         "start_location end_location date_time transport_type"
       );
-      reference_type = "ride";
+      reference_type = 0;
     }
 
     // 🟢 Step 4: Determine chat partner
@@ -152,7 +152,7 @@ export const getMessages = async (req, res) => {
     // 🟢 Step 5: Conversation logs
     const conversation_log = messages.map((msg) => ({
       conversation: msg.message,
-      conversation_date: moment(msg.updatedAt).format("YYYY-MM-DD HH:mm:ss"),
+      conversation_date: moment(msg.updatedAt).tz("Asia/Kolkata").format("DD MMM YYYY, hh:mm A"),
       conversation_id: msg.conversation_id,
       direction:
         String(msg.sender_id._id) === String(user_id) ? "outbound" : "inbound",
@@ -424,7 +424,8 @@ export const getConversationList = async (req, res) => {
 
 export const markMessagesAsRead = async (req, res) => {
   try {
-    const { conversation_id, receiver_id, conversation_for } = req.body;
+    const { conversation_id } = req.body;
+    const  receiver_id  = req.user._id;
 
     if (!conversation_id || !receiver_id) {
       return res.status(400).json({ status: "fail", message: "conversation_id and receiver_id required",data:[] });
@@ -432,7 +433,7 @@ export const markMessagesAsRead = async (req, res) => {
     console.log(conversation_id,'-', receiver_id);
 
     const result = await Chat.updateMany(
-      { conversation_id, receiver_id,conversation_for,is_read: false, status: "active" },
+      { conversation_id, receiver_id,is_read: false, status: "active" },
       { $set: { is_read: 1, unread_count: 0 } }
     );
     console.log(result);
@@ -451,8 +452,8 @@ export const markMessagesAsRead = async (req, res) => {
 
 export const deleteMessage = async (req, res) => {
   try {
-    const { message_id, user_id } = req.body;
-
+    const { message_id} = req.body;
+    const user_id = req.user._id;
     if (!message_id || !user_id) {
       return res.status(400).json({ status: "fail", message: "message_id and user_id required",data:[] });
     }

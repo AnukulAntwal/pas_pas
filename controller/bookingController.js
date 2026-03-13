@@ -119,18 +119,26 @@ export const bookServiceOrPackage = async (req, res) => {
     /* =========================
    UPDATE AVAILABILITY
     ========================= */
+    let updateData = {
+      is_available: 0
+    };
 
+    if (offer_price) {
+      updateData.price = offer_price;
+    }
     if (type === 0) {
       // Delivery Service booked
       await DeliveryService.findByIdAndUpdate(
         reference_id,
-        { is_available: 0 }
+        updateData,
+        { new: true }
       );
     } else if (type === 1) {
       // Package booked
       await Package.findByIdAndUpdate(
         reference_id,
-        { is_available: 0 }
+        updateData,
+        { new: true }
       );
     }
 
@@ -338,6 +346,20 @@ export const getMyBookings = async (req, res) => {
 
     const result = [];
 
+    const host = `${req.protocol}://${req.get("host")}`;
+
+
+  const attachProfileImage = (user) => {
+    if (!user) return null;
+
+    return {
+      ...user,
+      profile_image: user.profile_image
+        ? `${host}/uploads/profile_images/${user.profile_image}`
+        : null
+    };
+  };
+
     for (const booking of bookings) {
 
       let referenceOwner = null;
@@ -357,24 +379,23 @@ export const getMyBookings = async (req, res) => {
         if (!service || service.date_time < todayStart) continue;
 
         referenceOwner = await User.findById(service.uid)
-          .select("first_name last_name phone_number email")
+          .select("first_name last_name phone_number email profile_image")
           .lean();
 
         const bookedByUser = await User.findById(booking.booked_by)
-          .select("first_name last_name phone_number email")
+          .select("first_name last_name phone_number email profile_image")
           .lean();
 
-        // identify which user to show
         if (booking.booked_by.toString() === userId.toString()) {
 
           // maine service book ki
-          showUser = referenceOwner;
+          showUser = attachProfileImage(referenceOwner);
           bookingRole = "booked_by_me";
 
         } else if (service.uid.toString() === userId.toString()) {
 
           // meri service kisi ne book ki
-          showUser = bookedByUser;
+          showUser = attachProfileImage(bookedByUser);
           bookingRole = "booked_from_me";
 
         } else {
@@ -403,23 +424,21 @@ export const getMyBookings = async (req, res) => {
         if (!parcel || parcel.date_time < todayStart) continue;
 
         referenceOwner = await User.findById(parcel.uid)
-          .select("first_name last_name phone_number email")
+          .select("first_name last_name phone_number email profile_image")
           .lean();
 
         const bookedByUser = await User.findById(booking.booked_by)
-          .select("first_name last_name phone_number email")
+          .select("first_name last_name phone_number email profile_image")
           .lean();
 
         if (booking.booked_by.toString() === userId.toString()) {
 
-          // maine parcel book ki
-          showUser = referenceOwner;
+          showUser = attachProfileImage(referenceOwner);
           bookingRole = "booked_by_me";
 
         } else if (parcel.uid.toString() === userId.toString()) {
 
-          // mera parcel kisi ne book kiya
-          showUser = bookedByUser;
+          showUser = attachProfileImage(bookedByUser);
           bookingRole = "booked_from_me";
 
         } else {

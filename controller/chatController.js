@@ -124,14 +124,14 @@ export const getMessages = async (req, res) => {
     let refDetails = null;
     let reference_type = null;
 
-    if (firstMsg.conversation_for === 0) {
+    if (firstMsg.conversation_for === 1) {
       refDetails = await Package.findById(firstMsg.reference_id).select(
         "pickup_location drop_location package_type price"
       );
       reference_type = 1;
-    } else if (firstMsg.conversation_for === 1) {
+    } else if (firstMsg.conversation_for === 0) {
       refDetails = await Ride.findById(firstMsg.reference_id).select(
-        "start_location end_location date_time transport_type"
+        "start_location end_location date_time transport_type price"
       );
       reference_type = 0;
     }
@@ -367,19 +367,23 @@ export const getConversationList = async (req, res) => {
             : conv.sender_id;
 
         const chat_partner = await User.findById(chatPartnerId).select(
-          "first_name last_name"
+          "first_name last_name profile_image"
         );
-
+        const host = `${req.protocol}://${req.get("host")}`;
         const user_name = chat_partner
           ? `${chat_partner.first_name} ${chat_partner.last_name}`
           : "Unknown User";
 
+        const profile_image = chat_partner?.profile_image
+          ? `${host}/uploads/profile_images/${chat_partner.profile_image}`
+          : null;
+
         let reference_details = null;
-        if (conv.conversation_for === 0) {
+        if (conv.conversation_for === 1) {
           reference_details = await Package.findById(conv.reference_id).select(
             "pickup_location drop_location date_time price package_type package_size"
           );
-        } else if (conv.conversation_for === 1) {
+        } else if (conv.conversation_for === 0) {
           reference_details = await Ride.findById(conv.reference_id).select(
             "start_location end_location date_time"
           );
@@ -394,6 +398,7 @@ export const getConversationList = async (req, res) => {
           conversation_id: conv._id,
           conversation_for: conv.conversation_for,
           user_name,
+          profile_image,
           last_message: conv.last_message,
           unread_count: conv.unread_count,
           is_read: conv.is_read,

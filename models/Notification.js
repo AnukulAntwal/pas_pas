@@ -7,6 +7,7 @@ const notificationSchema = new mongoose.Schema(
     receiver_id: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     type: { type: String, enum: ["message"], default: "message" }, // can extend later
     message_text: { type: String, default: "" },
+    message_type: { type: String, default: "" },
     conversation_id: { type: Number, required: true },
     reference_id: { type: mongoose.Schema.Types.ObjectId },
     is_read: { type: Number, default: 0 },

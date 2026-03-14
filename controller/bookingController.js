@@ -85,7 +85,7 @@ export const bookServiceOrPackage = async (req, res) => {
     ========================= */
 
     const receiverId = referenceData?.uid;
-
+    let message_type = "Booked";
     let sentMessage = message && message.trim() !== ""
       ? message
       : "Your service has been booked successfully";
@@ -104,14 +104,20 @@ export const bookServiceOrPackage = async (req, res) => {
         unread_count: 1,
         is_read: 0
       });
-
+      let message_text ="";
+      if(type === 0){
+        message_text = "Your transport service has been booked successfully";
+      }else if(type === 1){ 
+        message_text = "Your parcel has been booked successfully";
+      }
       // 🔔 NOTIFICATION
       await Notification.create({
         sender_id: userId,
         receiver_id: receiverId,
         conversation_id,
+        message_type: message_type,
         reference_id,
-        message_text: sentMessage,
+        message_text: message_text,
         type: "message"
       });
     }
@@ -240,7 +246,7 @@ export const cancelBookingByReference = async (req, res) => {
     /* =========================
        GET REFERENCE OWNER
     ========================= */
-
+    let message_type = "Cancelled";
     let referenceData;
     if (booking.type === 0) {
       referenceData = await DeliveryService
@@ -268,6 +274,7 @@ export const cancelBookingByReference = async (req, res) => {
         receiver_id: referenceOwnerId,
         conversation_id,
         reference_id: booking._id,
+        message_type: message_type,
         message_text: "Booking has been cancelled",
         type: "message"
       });

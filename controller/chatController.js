@@ -55,6 +55,7 @@ export const sendMessage = async (req, res) => {
       receiver_id,
       conversation_id:finalConversationId,
       reference_id,
+      message_type:"comment",
       message_text: message,
       type: "message",
     });

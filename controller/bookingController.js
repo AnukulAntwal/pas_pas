@@ -85,7 +85,6 @@ export const bookServiceOrPackage = async (req, res) => {
     ========================= */
 
     const receiverId = referenceData?.uid;
-    let message_type = "Booked";
     let sentMessage = message && message.trim() !== ""
       ? message
       : "Your service has been booked successfully";
@@ -104,12 +103,15 @@ export const bookServiceOrPackage = async (req, res) => {
         unread_count: 1,
         is_read: 0
       });
+
       let message_text ="";
       if(type === 0){
         message_text = "Your transport service has been booked successfully";
       }else if(type === 1){ 
         message_text = "Your parcel has been booked successfully";
       }
+      let message_type = "Booked";
+
       // 🔔 NOTIFICATION
       await Notification.create({
         sender_id: userId,
@@ -143,7 +145,7 @@ export const bookServiceOrPackage = async (req, res) => {
       // Package booked
       await Package.findByIdAndUpdate(
         reference_id,
-        updateData,
+        { is_available: 0 },
         { new: true }
       );
     }
@@ -268,14 +270,16 @@ export const cancelBookingByReference = async (req, res) => {
 
     if (referenceOwnerId) {
       const conversation_id = await getNextConversationId();
-
+      let message_text ="";
+      message_text = "Your booking has been cancelled successfully";
+      
       await Notification.create({
         sender_id: userId,
         receiver_id: referenceOwnerId,
         conversation_id,
         reference_id: booking._id,
         message_type: message_type,
-        message_text: "Booking has been cancelled",
+        message_text: message_text,
         type: "message"
       });
     }
@@ -473,6 +477,14 @@ export const getMyBookings = async (req, res) => {
         user_details: showUser,
         reference_details: referenceDetails,
         created_at: moment(booking.createdAt).tz("Asia/Kolkata").format("DD MMM YYYY, hh:mm A")
+      });
+    }
+
+    if(!result.length){
+      return res.status(200).json({
+        status: "success",
+        message: "No bookings found",
+        data: []
       });
     }
 

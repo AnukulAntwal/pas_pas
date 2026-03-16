@@ -425,8 +425,8 @@ export const getMyBookings = async (req, res) => {
         referenceDetails = {
           reference_id: service._id,
           type: 0,
-          start_location: service.start_location,
-          end_location: service.end_location,
+          pickup_location: service.start_location,
+          drop_location: service.end_location,
           price: service.price,
           date_time: moment(service.date_time).tz("Asia/Kolkata").format("DD MMM YYYY, hh:mm A")
         };

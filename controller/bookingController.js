@@ -39,6 +39,14 @@ export const bookServiceOrPackage = async (req, res) => {
         data: []
       });
     }
+    
+    if(!referenceData.length){
+      return res.status(404).json({
+        status: "fail",
+        message: "Reference not found",
+        data: []
+      });
+    }
     // ❌ User cannot book own service/package
     if (referenceData?.uid?.toString() === userId.toString()) {
       return res.status(403).json({
@@ -47,6 +55,7 @@ export const bookServiceOrPackage = async (req, res) => {
         data: []
       });
     }
+    
 
 
     // 🔍 check already booked

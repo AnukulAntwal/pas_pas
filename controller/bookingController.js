@@ -15,8 +15,10 @@ dotenv.config();
 
 export const bookServiceOrPackage = async (req, res) => {
   try {
-    const { reference_id, type, message, offer_price } = req.body;
+    const { reference_id, message, offer_price } = req.body;
     const userId = req.user._id;
+    const type = Number(req.body.type);
+
 
     if (!reference_id || type === undefined) {
       return res.status(400).json({
@@ -80,6 +82,7 @@ export const bookServiceOrPackage = async (req, res) => {
         cancel_reason: ""
       });
     } else {
+      booking.type = type;
       booking.is_booked = 1;
       booking.status = 1;
       booking.booking_type = "Booked";

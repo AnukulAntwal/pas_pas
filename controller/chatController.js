@@ -169,7 +169,7 @@ export const getMessages = async (req, res) => {
         refDetails?.pickup_location || refDetails?.start_location || "",
       drop_location:
         refDetails?.drop_location || refDetails?.end_location || "",
-      price: refDetails?.price || "",
+      price: refDetails?.price || 0,
     };
 
     // ✅ Final response

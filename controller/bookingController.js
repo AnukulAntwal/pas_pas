@@ -40,7 +40,7 @@ export const bookServiceOrPackage = async (req, res) => {
       });
     }
     
-    if(!referenceData.length){
+    if(!referenceData){
       return res.status(404).json({
         status: "fail",
         message: "Reference not found",

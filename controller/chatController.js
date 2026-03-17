@@ -55,7 +55,7 @@ export const sendMessage = async (req, res) => {
       receiver_id,
       conversation_id:finalConversationId,
       reference_id,
-      message_type:"comment",
+      message_type:"Comment",
       message_text: message,
       type: "message",
     });
@@ -410,10 +410,16 @@ export const getConversationList = async (req, res) => {
       })
     );
 
+    const unreadNotificationCount = await Notification.countDocuments({
+      receiver_id: loggedUserObjectId,
+      is_read: 0,
+      status: "active"
+    });
     // ✅ Final Response
     res.status(200).json({
       status: "success",
       message: "Conversations fetched successfully",
+      unread_notification_count: unreadNotificationCount,
       data: result,
       count: result.length,
     });

@@ -930,7 +930,7 @@ const combined = [
   ...rides.map((r) => {
     const formatted = {
       ...r,
-      type: 1,
+      type: 0,
       user,
       created_at: r.createdAt
         ? moment(r.createdAt).utc().utcOffset("+05:30").format("DD MMM YYYY, hh:mm A")
@@ -950,7 +950,7 @@ const combined = [
   ...packages.map((p) => {
     const formatted = {
       ...p,
-      type: 0,
+      type: 1,
       user,
       created_at: p.createdAt
         ? moment(p.createdAt).utc().utcOffset("+05:30").format("DD MMM YYYY, hh:mm A")
@@ -1257,6 +1257,111 @@ export const updatePackage = async (req, res) => {
     });
   } catch (error) {
     console.error("❌ Error updating package:", error);
+    res.status(500).json({
+      status: "fail",
+      message: error.message,
+      data: [],
+    });
+  }
+};
+
+export const deleteParcelOrDeliveryService = async (req, res) => {
+  try {
+    const { reference_id, delete_reason } = req.body;
+    const type = Number(req.body.type);
+    const userId = req.user._id;
+
+    // ✅ Validation
+    if (!reference_id || (type !== 0 && type !== 1)) {
+      return res.status(400).json({
+        status: "fail",
+        message: "reference_id and valid type required",
+        data: [],
+      });
+    }
+
+    let Model;
+
+    if (type === 0) {
+      Model = DeliveryService;
+    } else {
+      Model = Package;
+    }
+
+    // ✅ Find record
+    const data = await Model.findById(reference_id);
+
+    if (!data) {
+      return res.status(404).json({
+        status: "fail",
+        message: "Record not found",
+        data: [],
+      });
+    }
+
+    // 🔐 Ownership check
+    if (data.uid.toString() !== userId.toString()) {
+      return res.status(403).json({
+        status: "fail",
+        message: "You can delete only your own data",
+        data: [],
+      });
+    }
+
+    // 🔍 Check booking
+    const booking = await Booking.findOne({
+      reference_id,
+      is_booked: 1,
+    });
+
+    // =========================
+    // CASE 1: BOOKED
+    // =========================
+    if (booking) {
+
+      // ❌ Reason required
+      if (!delete_reason || delete_reason.trim() === "") {
+        return res.status(400).json({
+          status: "fail",
+          message: "Delete reason is required for booked Transport/Parcels",
+          data: [],
+        });
+      }
+      const conversation_id = await getNextConversationId();
+
+      // 🔔 Send notification to booked user
+      await Notification.create({
+        sender_id: userId,
+        receiver_id: booking.booked_by,
+        reference_id,
+        conversation_id,
+        message_type: "Delete",
+        message_text: delete_reason,
+      });
+
+      // 🗑️ Delete after notification
+      await Model.findByIdAndDelete(reference_id);
+
+      return res.status(200).json({
+        status: "success",
+        message: "Deleted successfully and user notified",
+        data: [],
+      });
+    }
+
+    // =========================
+    // CASE 2: NOT BOOKED
+    // =========================
+    await Model.findByIdAndDelete(reference_id);
+
+    return res.status(200).json({
+      status: "success",
+      message: "Deleted successfully",
+      data: [],
+    });
+
+  } catch (error) {
+    console.error("Error deleting item:", error);
     res.status(500).json({
       status: "fail",
       message: error.message,

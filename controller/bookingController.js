@@ -117,9 +117,9 @@ export const bookServiceOrPackage = async (req, res) => {
       });
 
       let message_text ="";
-      if(type === 0){
+      if(type === 1){
         message_text = "Your transport service has been booked successfully";
-      }else if(type === 1){ 
+      }else if(type === 0){ 
         message_text = "Your parcel has been booked successfully";
       }
       let message_type = "Booked";

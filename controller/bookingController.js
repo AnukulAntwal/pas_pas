@@ -18,7 +18,11 @@ export const bookServiceOrPackage = async (req, res) => {
     const { reference_id, message, offer_price } = req.body;
     const userId = req.user._id;
     const type = Number(req.body.type);
+    console.log('type booking - ',type);
 
+    console.log('booking response  - ',req.body);
+
+    
 
     if (!reference_id || type === undefined) {
       return res.status(400).json({

@@ -266,12 +266,12 @@ export const cancelBookingByReference = async (req, res) => {
     ========================= */
     let message_type = "Cancelled";
     let referenceData;
-    if (booking.type === 0) {
+    if (booking.type === 1) {
       referenceData = await DeliveryService
         .findById(reference_id)
         .select("uid")
         .lean();
-    } else {
+    } else if (booking.type === 0) {
       referenceData = await Package
         .findById(reference_id)
         .select("uid")

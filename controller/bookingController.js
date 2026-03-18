@@ -103,7 +103,7 @@ export const bookServiceOrPackage = async (req, res) => {
     const receiverId = referenceData?.uid;
     let sentMessage = message && message.trim() !== ""
       ? message
-      : "Your service has been booked successfully";
+      : "Your service has been booked.";
 
     if (receiverId) {
       const conversation_id = await getNextConversationId();
@@ -122,9 +122,9 @@ export const bookServiceOrPackage = async (req, res) => {
 
       let message_text ="";
       if(type === 1){
-        message_text = "Your transport service has been booked successfully";
+        message_text = "Your transport service has been booked.";
       }else if(type === 0){ 
-        message_text = "Your parcel has been booked successfully";
+        message_text = "Your parcel has been booked.";
       }
       let message_type = "Booked";
 
@@ -223,49 +223,27 @@ export const cancelBookingByReference = async (req, res) => {
     const booking = await Booking.findOne({ reference_id });
 
     if (!booking) {
-      return res.status(200).json({
-        status: "success",
+      return res.status(404).json({
+        status: "fail",
         message: "Booking not found",
         data: []
       });
     }
 
-    // ❌ Only own booking can be cancelled
-    if (booking.booked_by?.toString() !== userId.toString()) {
-      return res.status(200).json({
-        status: "success",
-        message: "You can cancel only your own booking",
-        data: []
-      });
-    }
-
-   // ❌ No active booking found
+    // ❌ No active booking
     if (booking.is_booked === 0) {
-      return res.status(200).json({
-        status: "success",
+      return res.status(400).json({
+        status: "fail",
         message: "You cannot cancel this booking because it is not currently booked",
         data: []
       });
     }
 
-
-    /* =========================
-       UPDATE BOOKING
-    ========================= */
-
-    booking.is_booked = 0;
-    booking.status = 0;
-    booking.booking_type = "Cancelled";
-    booking.cancel_reason = cancel_reason || "";
-    booking.booked_by = null; // ✅ clear booked_by on cancel
-
-    await booking.save();
-
     /* =========================
        GET REFERENCE OWNER
     ========================= */
-    let message_type = "Cancelled";
     let referenceData;
+
     if (booking.type === 1) {
       referenceData = await DeliveryService
         .findById(reference_id)
@@ -280,44 +258,83 @@ export const cancelBookingByReference = async (req, res) => {
 
     const referenceOwnerId = referenceData?.uid;
 
+    // ✅ Role check
+    const isOwner = referenceOwnerId?.toString() === userId.toString();
+    const isBooker = booking.booked_by?.toString() === userId.toString();
+
+    // ❌ Unauthorized
+    if (!isOwner && !isBooker) {
+      return res.status(403).json({
+        status: "fail",
+        message: "You are not allowed to cancel this booking",
+        data: []
+      });
+    }
+
     /* =========================
-       NOTIFICATION ONLY
+       UPDATE BOOKING
     ========================= */
 
-    if (referenceOwnerId) {
+    booking.is_booked = 0;
+    booking.status = 0;
+    booking.booking_type = "Cancelled";
+    booking.cancel_reason = cancel_reason || "";
+    booking.booked_by = null;
+
+    await booking.save();
+
+    /* =========================
+       NOTIFICATION
+    ========================= */
+
+    let receiverId;
+    let message_text = "";
+    let message_type = "Cancelled";
+
+    if (isOwner) {
+      // 👉 Owner cancelling → notify booked user
+      receiverId = booking.booked_by; // ⚠️ booked_by already null ho gaya, so save before (fix below)
+      message_text = "Your booking has been cancelled by the owner";
+    } else if (isBooker) {
+      // 👉 User cancelling → notify owner
+      receiverId = referenceOwnerId;
+      message_text = "Your booking has been cancelled by the user";
+    }
+
+    // ⚠️ IMPORTANT FIX (booked_by null hone se pehle store karo)
+    const bookedUserId = booking.booked_by;
+
+    if (isOwner) {
+      receiverId = bookedUserId;
+    }
+
+    if (receiverId) {
       const conversation_id = await getNextConversationId();
-      let message_text ="";
-      message_text = "Your booking has been cancelled successfully";
-      
+
       await Notification.create({
         sender_id: userId,
-        receiver_id: referenceOwnerId,
+        receiver_id: receiverId,
         conversation_id,
         reference_id: booking._id,
-        message_type: message_type,
-        message_text: message_text,
+        message_type,
+        message_text,
         type: "message"
       });
     }
 
     /* =========================
-   UPDATE AVAILABILITY
+       UPDATE AVAILABILITY
     ========================= */
 
     if (booking.type === 1) {
-      // Delivery Service cancelled
-      await DeliveryService.findByIdAndUpdate(
-        reference_id,
-        { is_available: 1 }
-      );
+      await DeliveryService.findByIdAndUpdate(reference_id, {
+        is_available: 1
+      });
     } else if (booking.type === 0) {
-      // Package cancelled
-      await Package.findByIdAndUpdate(
-        reference_id,
-        { is_available: 1 }
-      );
+      await Package.findByIdAndUpdate(reference_id, {
+        is_available: 1
+      });
     }
-
 
     /* =========================
        USER DETAILS (RESPONSE)
@@ -335,7 +352,9 @@ export const cancelBookingByReference = async (req, res) => {
 
     return res.status(200).json({
       status: "success",
-      message: "Booking cancelled successfully",
+      message: isOwner
+        ? "Booking cancelled by owner"
+        : "Booking cancelled successfully",
       data: {
         booking_id: booking._id,
         reference_id,
@@ -344,8 +363,9 @@ export const cancelBookingByReference = async (req, res) => {
         is_booked: booking.is_booked,
         cancel_reason: booking.cancel_reason,
         cancelled_by: cancelledBy,
-        booked_by: null,              // ✅ explicitly null
-        reference_owner: referenceOwner
+        booked_by: null,
+        reference_owner: referenceOwner,
+        cancelled_by_role: isOwner ? "owner" : "booker" // 🔥 extra useful field
       }
     });
 

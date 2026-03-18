@@ -30,9 +30,9 @@ export const bookServiceOrPackage = async (req, res) => {
 
     // 🔎 get reference owner
     let referenceData;
-    if (type === 0) {
+    if (type === 1) {
       referenceData = await DeliveryService.findById(reference_id).select("uid");
-    } else if (type === 1) {
+    } else if (type === 0) {
       referenceData = await Package.findById(reference_id).select("uid");
     } else {
       return res.status(400).json({
@@ -146,14 +146,14 @@ export const bookServiceOrPackage = async (req, res) => {
     if (offer_price) {
       updateData.price = offer_price;
     }
-    if (type === 0) {
+    if (type === 1) {
       // Delivery Service booked
       await DeliveryService.findByIdAndUpdate(
         reference_id,
         updateData,
         { new: true }
       );
-    } else if (type === 1) {
+    } else if (type === 0) {
       // Package booked
       await Package.findByIdAndUpdate(
         reference_id,
@@ -300,13 +300,13 @@ export const cancelBookingByReference = async (req, res) => {
    UPDATE AVAILABILITY
     ========================= */
 
-    if (booking.type === 0) {
+    if (booking.type === 1) {
       // Delivery Service cancelled
       await DeliveryService.findByIdAndUpdate(
         reference_id,
         { is_available: 1 }
       );
-    } else if (booking.type === 1) {
+    } else if (booking.type === 0) {
       // Package cancelled
       await Package.findByIdAndUpdate(
         reference_id,
@@ -393,7 +393,7 @@ export const getMyBookings = async (req, res) => {
       // =========================
       // DELIVERY SERVICE
       // =========================
-      if (booking.type === 0) {
+      if (booking.type === 1) {
 
         const service = await DeliveryService.findById(booking.reference_id)
           .select("uid start_location end_location price date_time")
@@ -427,7 +427,7 @@ export const getMyBookings = async (req, res) => {
 
         referenceDetails = {
           reference_id: service._id,
-          type: 0,
+          type: 1,
           start_location: service.start_location,
           end_location: service.end_location,
           price: service.price,
@@ -438,7 +438,7 @@ export const getMyBookings = async (req, res) => {
       // =========================
       // PACKAGE
       // =========================
-      if (booking.type === 1) {
+      if (booking.type === 0) {
 
         const parcel = await Package.findById(booking.reference_id)
           .select("uid pickup_location drop_location price date_time")
@@ -470,7 +470,7 @@ export const getMyBookings = async (req, res) => {
 
         referenceDetails = {
           reference_id: parcel._id,
-          type: 1,
+          type: 0,
           pickup_location: parcel.pickup_location,
           drop_location: parcel.drop_location,
           price: parcel.price,
@@ -930,7 +930,7 @@ const combined = [
   ...rides.map((r) => {
     const formatted = {
       ...r,
-      type: 0,
+      type: 1,
       user,
       created_at: r.createdAt
         ? moment(r.createdAt).utc().utcOffset("+05:30").format("DD MMM YYYY, hh:mm A")
@@ -950,7 +950,7 @@ const combined = [
   ...packages.map((p) => {
     const formatted = {
       ...p,
-      type: 1,
+      type: 0,
       user,
       created_at: p.createdAt
         ? moment(p.createdAt).utc().utcOffset("+05:30").format("DD MMM YYYY, hh:mm A")
@@ -1282,9 +1282,9 @@ export const deleteParcelOrDeliveryService = async (req, res) => {
 
     let Model;
 
-    if (type === 0) {
+    if (type === 1) {
       Model = DeliveryService;
-    } else {
+    } else if(type == 0){
       Model = Package;
     }
 

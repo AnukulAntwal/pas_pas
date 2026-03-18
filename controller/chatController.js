@@ -125,16 +125,16 @@ export const getMessages = async (req, res) => {
     let refDetails = null;
     let reference_type = null;
 
-    if (firstMsg.conversation_for === 1) {
+    if (firstMsg.conversation_for === 0) {
       refDetails = await Package.findById(firstMsg.reference_id).select(
         "pickup_location drop_location package_type price"
       );
-      reference_type = 1;
-    } else if (firstMsg.conversation_for === 0) {
+      reference_type = 0;
+    } else if (firstMsg.conversation_for === 1) {
       refDetails = await Ride.findById(firstMsg.reference_id).select(
         "start_location end_location date_time transport_type price"
       );
-      reference_type = 0;
+      reference_type = 1;
     }
 
     // 🟢 Step 4: Determine chat partner
@@ -380,11 +380,11 @@ export const getConversationList = async (req, res) => {
           : null;
 
         let reference_details = null;
-        if (conv.conversation_for === 1) {
+        if (conv.conversation_for === 0) {
           reference_details = await Package.findById(conv.reference_id).select(
             "pickup_location drop_location date_time price package_type package_size"
           );
-        } else if (conv.conversation_for === 0) {
+        } else if (conv.conversation_for === 1) {
           reference_details = await Ride.findById(conv.reference_id).select(
             "start_location end_location date_time"
           );

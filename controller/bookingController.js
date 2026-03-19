@@ -1352,7 +1352,7 @@ export const deleteParcelOrDeliveryService = async (req, res) => {
         });
       }
       const conversation_id = await getNextConversationId();
-
+      delete_reason = `This publication has been deleted by the owner. Reason: ${delete_reason}`;
       // 🔔 Send notification to booked user
       await Notification.create({
         sender_id: userId,

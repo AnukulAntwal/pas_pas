@@ -1341,6 +1341,8 @@ export const deleteParcelOrDeliveryService = async (req, res) => {
     // =========================
     // CASE 1: BOOKED
     // =========================
+    let delete_reason_message = "";
+
     if (booking) {
 
       // ❌ Reason required
@@ -1352,7 +1354,9 @@ export const deleteParcelOrDeliveryService = async (req, res) => {
         });
       }
       const conversation_id = await getNextConversationId();
-      delete_reason = `This publication has been deleted by the owner. Reason: ${delete_reason}`;
+      delete_reason_message = `This publication has been deleted by the owner. Reason: ${delete_reason}`;
+
+
       // 🔔 Send notification to booked user
       await Notification.create({
         sender_id: userId,
@@ -1360,7 +1364,7 @@ export const deleteParcelOrDeliveryService = async (req, res) => {
         reference_id,
         conversation_id,
         message_type: "Delete",
-        message_text: delete_reason,
+        message_text: delete_reason_message ? delete_reason_message : delete_reason,
       });
 
       // 🗑️ Delete after notification

@@ -1354,7 +1354,7 @@ export const deleteParcelOrDeliveryService = async (req, res) => {
         });
       }
       const conversation_id = await getNextConversationId();
-      delete_reason_message = `This publication has been deleted by the owner. Reason: ${delete_reason}`;
+      delete_reason_message = `The ${type === 1 ? "Transport Service" : "Package"} you booked has been removed by the owner with Reason: ${delete_reason}`;
 
 
       // 🔔 Send notification to booked user
@@ -1363,7 +1363,7 @@ export const deleteParcelOrDeliveryService = async (req, res) => {
         receiver_id: booking.booked_by,
         reference_id,
         conversation_id,
-        message_type: "Delete",
+        message_type: "Deleted",
         message_text: delete_reason_message ? delete_reason_message : delete_reason,
       });
 

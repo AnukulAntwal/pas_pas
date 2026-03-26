@@ -13,7 +13,7 @@ export const requestPasswordReset = async (req, res) => {
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(404).json({
-        success: "fail",
+        status: "fail",
         message: "No account found with this email",
         data: [],
       });
@@ -35,7 +35,7 @@ export const requestPasswordReset = async (req, res) => {
     await sendOTPEmail(email, otp);
 
     res.json({
-      success: "success",
+      status: "success",
       message: "OTP sent to your email",
       email,
       data: email,
@@ -43,7 +43,7 @@ export const requestPasswordReset = async (req, res) => {
   } catch (error) {
     console.error("Request password reset error:", error);
     res.status(500).json({
-      success: "fail",
+      status: "fail",
       message: error.message || "Failed to request password reset",
       data: [],
     });
@@ -64,7 +64,7 @@ export const verifyOTP = async (req, res) => {
 
     if (!otpRecord) {
       return res.status(400).json({
-        success: "fail",
+        status: "fail",
         message: "Invalid or expired OTP",
         data: [],
       });
@@ -72,7 +72,7 @@ export const verifyOTP = async (req, res) => {
 
     // OTP is valid
     res.json({
-      success: "success",
+      status: "success",
       message: "OTP verified successfully",
       email,
       data: email,
@@ -80,7 +80,7 @@ export const verifyOTP = async (req, res) => {
   } catch (error) {
     console.error("Verify OTP error:", error);
     res.status(500).json({
-      success: "fail",
+      status: "fail",
       message: "Failed to verify OTP",
       data: [],
     });
@@ -101,7 +101,7 @@ export const resetPassword = async (req, res) => {
 
     if (!otpRecord) {
       return res.status(400).json({
-        success: "fail",
+        status: "fail",
         message: "Invalid or expired OTP",
         data: [],
       });
@@ -111,7 +111,7 @@ export const resetPassword = async (req, res) => {
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(404).json({
-        success: "fail",
+        status: "fail",
         message: "User not found",
         data: [],
       });
@@ -126,14 +126,14 @@ export const resetPassword = async (req, res) => {
     await OTP.deleteOne({ _id: otpRecord._id });
 
     res.json({
-      success: "success",
+      status: "success",
       message: "Password reset successfully",
       data: user,
     });
   } catch (error) {
     console.error("Reset password error:", error);
     res.status(500).json({
-      success: "fail",
+      status: "fail",
       message: "Failed to reset password",
       data: [],
     });

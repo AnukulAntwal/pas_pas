@@ -17,6 +17,7 @@ const transporter = nodemailer.createTransport({
 
 
 export const sendOTPEmail = async (email, otp) => {
+console.log('Preparing to send OTP email to:', process.env.EMAIL_USER);  
   const mailOptions = {
     from: `PasPas App Reset Link <${process.env.EMAIL_USER}>`,
     to: email,
@@ -83,7 +84,7 @@ export const sendOTPEmail = async (email, otp) => {
 
     await Promise.race([sendPromise, timeoutPromise]);
     
-    return { success: true, message: 'OTP sent successfully' };
+    return { status: "success", message: 'OTP sent successfully' };
   } catch (error) {
     console.error('Email error:', error);
     throw new Error('Failed to send OTP email');

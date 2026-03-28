@@ -21,7 +21,7 @@ export const requestPasswordReset = async (req, res) => {
 
     // Generate OTP
     const otp = generateOTP(6);
-
+    console.log(`Generated OTP for ${email}: ${otp}`);
     // Delete any existing OTPs for this email
     await OTP.deleteMany({ email });
 

@@ -7,9 +7,23 @@ import bcrypt from "bcryptjs";
 // Step 1: Request OTP for password reset
 export const requestPasswordReset = async (req, res) => {
   try {
-    const { email } = req.body;
-
+    const { email, purpose } = req.body;
+    if(!email || !purpose){
+      return res.status(400).json({
+        status: "fail",
+        message: "Email and purpose are required",
+        data: [],
+      });
+    }
+    if(purpose !== "account" && purpose !== "reset"){
+      return res.status(400).json({
+        status: "fail",
+        message: "Invalid purpose.Please use valid purpose for veryfying the request",
+        data: [],
+      });
+    }
     // Check if user exists
+  if(purpose != "account"){
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(404).json({
@@ -18,7 +32,7 @@ export const requestPasswordReset = async (req, res) => {
         data: [],
       });
     }
-
+  }
     // Generate OTP
     const otp = generateOTP(6);
     console.log(`Generated OTP for ${email}: ${otp}`);
@@ -32,7 +46,7 @@ export const requestPasswordReset = async (req, res) => {
     });
 
     // Send OTP via email
-    await sendOTPEmail(email, otp);
+    await sendOTPEmail(email, otp, purpose);
 
     res.json({
       status: "success",
@@ -44,7 +58,7 @@ export const requestPasswordReset = async (req, res) => {
     console.error("Request password reset error:", error);
     res.status(500).json({
       status: "fail",
-      message: error.message || "Failed to request password reset",
+      message: error.message,
       data: [],
     });
   }
@@ -54,7 +68,8 @@ export const requestPasswordReset = async (req, res) => {
 export const verifyOTP = async (req, res) => {
   try {
     const { email, otp } = req.body;
-
+    console.log(req.body);
+    
     // Find the OTP in database
     const otpRecord = await OTP.findOne({
       email,
@@ -90,22 +105,22 @@ export const verifyOTP = async (req, res) => {
 // Step 3: Reset password
 export const resetPassword = async (req, res) => {
   try {
-    const { email, otp, newPassword } = req.body;
+    const { email, newPassword } = req.body;
 
     // Verify OTP again
-    const otpRecord = await OTP.findOne({
-      email,
-      otp,
-      isUsed: false,
-    });
+    // const otpRecord = await OTP.findOne({
+    //   email,
+    //   otp,
+    //   isUsed: false,
+    // });
 
-    if (!otpRecord) {
-      return res.status(400).json({
-        status: "fail",
-        message: "Invalid or expired OTP",
-        data: [],
-      });
-    }
+    // if (!otpRecord) {
+    //   return res.status(400).json({
+    //     status: "fail",
+    //     message: "Invalid or expired OTP",
+    //     data: [],
+    //   });
+    // }
 
     // Find user and update password
     const user = await User.findOne({ email });
@@ -123,7 +138,7 @@ export const resetPassword = async (req, res) => {
     await user.save();
 
     // Mark OTP as used and delete it
-    await OTP.deleteOne({ _id: otpRecord._id });
+    // await OTP.deleteOne({ _id: otpRecord._id });
 
     res.json({
       status: "success",

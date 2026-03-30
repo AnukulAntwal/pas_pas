@@ -23,7 +23,7 @@ const validatePasswordReset = [
 ];
 
 // Routes
-router.post('/request-password-reset', validateEmail, validate, requestPasswordReset);
+router.post('/request-otp', validateEmail, validate, requestPasswordReset);
 router.post('/verify-otp', validateOTP, validate, verifyOTP);
 router.post('/reset-password', validatePasswordReset, validate, resetPassword);
 

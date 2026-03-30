@@ -9,6 +9,7 @@ import verifyCustomToken from "../../middlewares/authAdmin.js";
 router.post('/login',loginController)
 router.post('/register',uploadDocs.single("profile_image"),registerController)
 router.use("/forgot-password", resetPasswordRouter);
+router.use("/", resetPasswordRouter);
 // router.put("/edit-profile",verifyCustomToken,upload.single("profile_image"),editProfile);
 router.put(
   "/edit-profile",

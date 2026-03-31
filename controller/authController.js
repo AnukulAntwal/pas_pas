@@ -74,7 +74,13 @@ export const verifyOTP = async (req, res) => {
   try {
     const { email, otp } = req.body;
     // console.log(req.body);
-    
+    if (!email || !otp) {
+      return res.status(400).json({
+        status: "fail",
+        message: "Email and OTP are required",
+        data: [],
+      });
+    }
     // Find the OTP in database
     const otpRecord = await OTP.findOne({
       email,
@@ -111,6 +117,13 @@ export const resetPassword = async (req, res) => {
   try {
     const { email,otp, newPassword } = req.body;
 
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({
+        status: "fail",
+        message: "Email, OTP, and new password are required",
+        data: [],
+      });
+    }
     // Verify OTP again
     const otpRecord = await OTP.findOne({
       email,

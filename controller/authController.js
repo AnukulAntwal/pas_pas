@@ -45,12 +45,17 @@ export const requestPasswordReset = async (req, res) => {
       otp,
     });
 
+    let message = "";
     // Send OTP via email
     await sendOTPEmail(email, otp, purpose);
-
+    if (purpose === "account") {
+      message = "OTP has been sent to your email for account verification.";
+    } else if (purpose === "reset") {
+      message = "OTP has been sent to your email for reset password.";
+    }
     res.json({
       status: "success",
-      message: "OTP sent to your email",
+      message: message || "OTP sent to your email",
       email,
       data: email,
     });
@@ -68,7 +73,7 @@ export const requestPasswordReset = async (req, res) => {
 export const verifyOTP = async (req, res) => {
   try {
     const { email, otp } = req.body;
-    console.log(req.body);
+    // console.log(req.body);
     
     // Find the OTP in database
     const otpRecord = await OTP.findOne({
@@ -86,12 +91,11 @@ export const verifyOTP = async (req, res) => {
     }
 
     // OTP is valid
-    res.json({
-      status: "success",
-      message: "OTP verified successfully",
-      email,
-      data: email,
-    });
+   res.json({
+    status: "success",
+    message: "OTP has been verified successfully.",
+    data: { email },
+  });
   } catch (error) {
     console.error("Verify OTP error:", error);
     res.status(500).json({
@@ -105,30 +109,29 @@ export const verifyOTP = async (req, res) => {
 // Step 3: Reset password
 export const resetPassword = async (req, res) => {
   try {
-    const { email, newPassword } = req.body;
+    const { email,otp, newPassword } = req.body;
 
     // Verify OTP again
-    // const otpRecord = await OTP.findOne({
-    //   email,
-    //   otp,
-    //   isUsed: false,
-    // });
+    const otpRecord = await OTP.findOne({
+      email,
+      otp,
+      isUsed: false,
+    });
 
-    // if (!otpRecord) {
-    //   return res.status(400).json({
-    //     status: "fail",
-    //     message: "Invalid or expired OTP",
-    //     data: [],
-    //   });
-    // }
+    if (!otpRecord) {
+      return res.status(400).json({
+        status: "fail",
+        message: "Invalid or expired OTP",
+        data: [],
+      });
+    }
 
     // Find user and update password
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(404).json({
         status: "fail",
-        message: "User not found",
-        data: [],
+        message: "No account found with this email.",
       });
     }
 
@@ -138,11 +141,11 @@ export const resetPassword = async (req, res) => {
     await user.save();
 
     // Mark OTP as used and delete it
-    // await OTP.deleteOne({ _id: otpRecord._id });
+    await OTP.deleteOne({ _id: otpRecord._id });
 
     res.json({
       status: "success",
-      message: "Password reset successfully",
+      message: "Your password has been reset successfully.",
       data: user,
     });
   } catch (error) {

@@ -18,7 +18,7 @@ const validateOTP = [
 
 const validatePasswordReset = [
   body('email').isEmail().normalizeEmail(),
-  // body('otp').isLength({ min: 6, max: 6 }).isNumeric(),
+  body('otp').isLength({ min: 6, max: 6 }).isNumeric(),
   body('newPassword').isLength({ min: 6 }).withMessage('Password must be at least 6 characters')
 ];
 

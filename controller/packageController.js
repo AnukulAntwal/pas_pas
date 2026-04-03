@@ -313,8 +313,8 @@ export const getPackages = async (req, res) => {
         }
       ]
     })
-    .populate("uid", "first_name last_name phone_number")
-    .populate('booked_by', 'first_name last_name')
+    .populate("uid", "first_name last_name phone_number badge")
+    .populate('booked_by', 'first_name last_name badge')
     .sort({ date_time: 1 });
 
     if (!packages.length) {

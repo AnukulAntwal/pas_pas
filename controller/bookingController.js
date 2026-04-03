@@ -433,11 +433,11 @@ export const getMyBookings = async (req, res) => {
         if (!service || service.date_time < todayStart) continue;
 
         referenceOwner = await User.findById(service.uid)
-          .select("first_name last_name phone_number email profile_image")
+          .select("first_name last_name phone_number email profile_image badge")
           .lean();
 
         const bookedByUser = await User.findById(booking.booked_by)
-          .select("first_name last_name phone_number email profile_image")
+          .select("first_name last_name phone_number email profile_image badge")
           .lean();
 
         if (booking.booked_by.toString() === userId.toString()) {
@@ -926,7 +926,7 @@ export const getMyPublished = async (req, res) => {
 
     // 🧑‍💻 Fetch user details once
     const user = await User.findById(user_id)
-      .select("first_name last_name email phone")
+      .select("first_name last_name email phone_number profile_image verified createdAt badge")
       .lean({getters:true});
 
     if (!user) {
@@ -1192,58 +1192,242 @@ export const updateDeliveryService = async (req, res) => {
   }
 };
 
+// export const updatePackage = async (req, res) => {
+//   try {
+//     // const { package_id } = req.query;
+//     const {package_id, pickup_lat, pickup_long, drop_lat, drop_long,date_time, ...otherFields } = req.body || {};
+
+//     if (!package_id) {
+//       return res.status(400).json({
+//         status: "fail",
+//         message: "Missing package_id in body",
+//       });
+//     }
+
+//     const googleApiKey = process.env.GOOGLE_MAPS_API_KEY;
+//     let route_path = [];
+
+//     // ✅ Recalculate route only if pickup/drop coordinates are updated
+//     if (pickup_lat && pickup_long && drop_lat && drop_long) {
+//       const mainUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${pickup_lat},${pickup_long}&destination=${drop_lat},${drop_long}&key=${googleApiKey}`;
+//       const mainResponse = await axios.get(mainUrl);
+//       const mainSteps = mainResponse.data.routes[0]?.legs[0]?.steps || [];
+
+//       mainSteps.forEach((step) => {
+//         route_path.push({
+//           lat: step.start_location.lat,
+//           long: step.start_location.lng,
+//         });
+//       });
+//       route_path.push({ lat: drop_lat, long: drop_long });
+
+//       // ➕ Extend route by 20 km beyond drop
+//       const extendDistance = 20;
+//       const earthRadius = 6371;
+//       const newLat = drop_lat + (extendDistance / earthRadius) * (180 / Math.PI);
+//       const newLong =
+//         drop_long +
+//         ((extendDistance / earthRadius) * (180 / Math.PI)) /
+//           Math.cos((drop_lat * Math.PI) / 180);
+
+//       const extendUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${drop_lat},${drop_long}&destination=${newLat},${newLong}&key=${googleApiKey}`;
+//       const extendResponse = await axios.get(extendUrl);
+//       const extendSteps = extendResponse.data.routes[0]?.legs[0]?.steps || [];
+
+//       extendSteps.forEach((step) => {
+//         route_path.push({
+//           lat: step.start_location.lat,
+//           long: step.start_location.lng,
+//         });
+//       });
+//       route_path.push({ lat: newLat, long: newLong });
+//     }
+    
+//     let dateTimeUTC;
+//     if (date_time) {
+//       const parsed = moment.tz(
+//         date_time,
+//         "YYYY-MM-DD HH:mm:ss",
+//         "Asia/Kolkata"
+//       );
+
+//       if (parsed.isValid()) {
+//         dateTimeUTC = parsed.utc().toDate();
+//       }
+//     }
+//     // ✅ Prepare dynamic update object
+//     const updateData = {
+//       ...otherFields, // e.g. package_type, price, etc.
+//       ...(pickup_lat && { pickup_lat }),
+//       ...(pickup_long && { pickup_long }),
+//       ...(drop_lat && { drop_lat }),
+//       ...(drop_long && { drop_long }),
+//       ...(dateTimeUTC && { date_time: dateTimeUTC }),
+//       ...(route_path.length > 0 && { route_path }),
+//     };
+
+//     console.log("🟢 Update Data:", updateData);
+
+//     // ✅ Perform update
+//     const updatedPackage = await Package.findByIdAndUpdate(package_id, updateData, {
+//       new: true,
+//     });
+
+//     if (!updatedPackage) {
+//       return res.status(404).json({
+//         status: "fail",
+//         message: "Package not found",
+//         data: [],
+//       });
+//     }
+
+//     res.status(200).json({
+//       status: "success",
+//       message: "Package updated successfully",
+//       data: updatedPackage,
+//     });
+//   } catch (error) {
+//     console.error("❌ Error updating package:", error);
+//     res.status(500).json({
+//       status: "fail",
+//       message: error.message,
+//       data: [],
+//     });
+//   }
+// };
+
 export const updatePackage = async (req, res) => {
   try {
-    // const { package_id } = req.query;
-    const {package_id, pickup_lat, pickup_long, drop_lat, drop_long,date_time, ...otherFields } = req.body || {};
+    const {
+      package_id,
+      pickup_lat,
+      pickup_long,
+      drop_lat,
+      drop_long,
+      date_time,
+      ...otherFields
+    } = req.body || {};
 
     if (!package_id) {
       return res.status(400).json({
         status: "fail",
-        message: "Missing package_id in body",
+        message: "Missing package_id",
+      });
+    }
+
+    const existingPackage = await Package.findById(package_id);
+
+    if (!existingPackage) {
+      return res.status(404).json({
+        status: "fail",
+        message: "Package not found",
       });
     }
 
     const googleApiKey = process.env.GOOGLE_MAPS_API_KEY;
-    let route_path = [];
 
-    // ✅ Recalculate route only if pickup/drop coordinates are updated
-    if (pickup_lat && pickup_long && drop_lat && drop_long) {
+    let route_path = existingPackage.route_path;
+    let road_stops = existingPackage.road_stops;
+
+    // ✅ Check if location changed
+    const locationChanged =
+      pickup_lat &&
+      pickup_long &&
+      drop_lat &&
+      drop_long &&
+      (
+        pickup_lat !== existingPackage.pickup_lat ||
+        pickup_long !== existingPackage.pickup_long ||
+        drop_lat !== existingPackage.drop_lat ||
+        drop_long !== existingPackage.drop_long
+      );
+
+    // --------------------------------------------------
+    // ✅ Recalculate only if location changed
+    // --------------------------------------------------
+    if (locationChanged) {
+      route_path = [];
+
       const mainUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${pickup_lat},${pickup_long}&destination=${drop_lat},${drop_long}&key=${googleApiKey}`;
+
       const mainResponse = await axios.get(mainUrl);
-      const mainSteps = mainResponse.data.routes[0]?.legs[0]?.steps || [];
 
-      mainSteps.forEach((step) => {
-        route_path.push({
-          lat: step.start_location.lat,
-          long: step.start_location.lng,
+      if (mainResponse.data.status !== "OK") {
+        console.error("Google API Error:", mainResponse.data);
+        return res.status(400).json({
+          status: "fail",
+          message: "Directions API error",
         });
+      }
+
+      const mainSteps =
+        mainResponse.data.routes[0]?.legs[0]?.steps || [];
+
+      // ✅ Add pickup
+      route_path.push({ lat: pickup_lat, long: pickup_long });
+
+      // ✅ Add steps (optimized sampling)
+      mainSteps.forEach((step, index) => {
+        if (index % 2 === 0) {
+          route_path.push({
+            lat: step.end_location.lat,
+            long: step.end_location.lng,
+          });
+        }
       });
-      route_path.push({ lat: drop_lat, long: drop_long });
 
-      // ➕ Extend route by 20 km beyond drop
-      const extendDistance = 20;
-      const earthRadius = 6371;
-      const newLat = drop_lat + (extendDistance / earthRadius) * (180 / Math.PI);
-      const newLong =
-        drop_long +
-        ((extendDistance / earthRadius) * (180 / Math.PI)) /
-          Math.cos((drop_lat * Math.PI) / 180);
+      // ✅ Direction-based extension (same as save)
+      if (route_path.length >= 2) {
+        const extendDistanceKm = 20;
 
-      const extendUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${drop_lat},${drop_long}&destination=${newLat},${newLong}&key=${googleApiKey}`;
-      const extendResponse = await axios.get(extendUrl);
-      const extendSteps = extendResponse.data.routes[0]?.legs[0]?.steps || [];
+        const last = route_path.at(-1);
+        const secondLast = route_path.at(-2);
 
-      extendSteps.forEach((step) => {
-        route_path.push({
-          lat: step.start_location.lat,
-          long: step.start_location.lng,
-        });
-      });
-      route_path.push({ lat: newLat, long: newLong });
+        const dx = last.lat - secondLast.lat;
+        const dy = last.long - secondLast.long;
+
+        const magnitude = Math.sqrt(dx * dx + dy * dy);
+
+        if (!isNaN(magnitude) && magnitude > 0) {
+          const scale = (extendDistanceKm / 111) / magnitude;
+
+          route_path.push({
+            lat: last.lat + dx * scale,
+            long: last.long + dy * scale,
+          });
+        }
+      }
+
+      // ✅ Road stops
+      road_stops = await getRoadStops(
+        pickup_lat,
+        pickup_long,
+        drop_lat,
+        drop_long,
+        googleApiKey
+      );
+
+      // ✅ City enrichment (same as delivery)
+      const SAMPLE_EVERY = 4;
+
+      route_path = await Promise.all(
+        route_path.map(async (point, i) => {
+          if (i % SAMPLE_EVERY === 0) {
+            const city = await getCityFromLatLong(
+              point.lat,
+              point.long,
+              googleApiKey
+            );
+            return { ...point, city };
+          }
+          return { ...point, city: null };
+        })
+      );
     }
-    
+
+    // ✅ Date handling (same as delivery)
     let dateTimeUTC;
+
     if (date_time) {
       const parsed = moment.tz(
         date_time,
@@ -1255,43 +1439,36 @@ export const updatePackage = async (req, res) => {
         dateTimeUTC = parsed.utc().toDate();
       }
     }
-    // ✅ Prepare dynamic update object
+
+    // ✅ Final update object
     const updateData = {
-      ...otherFields, // e.g. package_type, price, etc.
+      ...otherFields,
       ...(pickup_lat && { pickup_lat }),
       ...(pickup_long && { pickup_long }),
       ...(drop_lat && { drop_lat }),
       ...(drop_long && { drop_long }),
+      ...(locationChanged && { route_path }),
+      ...(locationChanged && { road_stops }),
       ...(dateTimeUTC && { date_time: dateTimeUTC }),
-      ...(route_path.length > 0 && { route_path }),
     };
 
-    console.log("🟢 Update Data:", updateData);
+    const updatedPackage = await Package.findByIdAndUpdate(
+      package_id,
+      updateData,
+      { new: true }
+    );
 
-    // ✅ Perform update
-    const updatedPackage = await Package.findByIdAndUpdate(package_id, updateData, {
-      new: true,
-    });
-
-    if (!updatedPackage) {
-      return res.status(404).json({
-        status: "fail",
-        message: "Package not found",
-        data: [],
-      });
-    }
-
-    res.status(200).json({
+    return res.status(200).json({
       status: "success",
       message: "Package updated successfully",
       data: updatedPackage,
     });
+
   } catch (error) {
     console.error("❌ Error updating package:", error);
-    res.status(500).json({
+    return res.status(500).json({
       status: "fail",
       message: error.message,
-      data: [],
     });
   }
 };

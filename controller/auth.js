@@ -279,6 +279,7 @@ export const editProfile = async (req, res) => {
       city,
       state,
       pincode,
+      badge,
     } = req.body;
 
     /* ================= AADHAAR IMAGE VALIDATION ================= */
@@ -400,6 +401,9 @@ export const editProfile = async (req, res) => {
 
     if (pincode !== undefined) {
       user.pincode = pincode;
+    }
+    if (badge !== undefined) {
+      user.badge = badge;
     }
     const updatedUser = await user.save();
 

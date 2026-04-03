@@ -113,6 +113,10 @@ const userSchema = new mongoose.Schema(
       enum: [0, 1],
       default: 0, // ✅ default 0
     },
+    badge: {
+      type: String,
+      default: null,
+    },
     pan_resubmit_count: { type: Number, default: 0 },
     aadhar_resubmit_count: { type: Number, default: 0 },
     resetPasswordToken: { type: String },

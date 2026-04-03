@@ -80,7 +80,7 @@ export const getNotifications = async (req, res) => {
 
     // Get notifications list
     const notifications = await Notification.find(filter)
-      .populate("sender_id", "first_name last_name phone_number badge")
+      .populate("sender_id", "first_name last_name phone_number badge is_verified_user")
       .sort({ createdAt: -1 });
 
     const formatted = notifications.map((notif) => ({

@@ -179,12 +179,12 @@ export const bookServiceOrPackage = async (req, res) => {
     ========================= */
 
     const bookedByUser = await User.findById(userId)
-      .select("first_name last_name phone_number email")
+      .select("first_name last_name phone_number email badge is_verified_user")
       .lean();
 
     const referenceOwner = receiverId
       ? await User.findById(receiverId)
-          .select("first_name last_name phone_number email")
+          .select("first_name last_name phone_number email badge is_verified_user")
           .lean()
       : null;
 
@@ -348,12 +348,12 @@ export const cancelBookingByReference = async (req, res) => {
     ========================= */
 
     const cancelledBy = await User.findById(userId)
-      .select("first_name last_name phone_number email")
+      .select("first_name last_name phone_number email badge is_verified_user")
       .lean();
 
     const referenceOwner = referenceOwnerId
       ? await User.findById(referenceOwnerId)
-          .select("first_name last_name phone_number email")
+          .select("first_name last_name phone_number email badge is_verified_user")
           .lean()
       : null;
 
@@ -433,11 +433,11 @@ export const getMyBookings = async (req, res) => {
         if (!service || service.date_time < todayStart) continue;
 
         referenceOwner = await User.findById(service.uid)
-          .select("first_name last_name phone_number email profile_image badge")
+          .select("first_name last_name phone_number email profile_image badge is_verified_user")
           .lean();
 
         const bookedByUser = await User.findById(booking.booked_by)
-          .select("first_name last_name phone_number email profile_image badge")
+          .select("first_name last_name phone_number email profile_image badge is_verified_user")
           .lean();
 
         if (booking.booked_by.toString() === userId.toString()) {
@@ -478,11 +478,11 @@ export const getMyBookings = async (req, res) => {
         if (!parcel || parcel.date_time < todayStart) continue;
 
         referenceOwner = await User.findById(parcel.uid)
-          .select("first_name last_name phone_number email profile_image")
+          .select("first_name last_name phone_number email badge profile_image is_verified_user")
           .lean();
 
         const bookedByUser = await User.findById(booking.booked_by)
-          .select("first_name last_name phone_number email profile_image")
+          .select("first_name last_name phone_number email badge profile_image is_verified_user")
           .lean();
 
         if (booking.booked_by.toString() === userId.toString()) {
@@ -926,7 +926,7 @@ export const getMyPublished = async (req, res) => {
 
     // 🧑‍💻 Fetch user details once
     const user = await User.findById(user_id)
-      .select("first_name last_name email phone_number profile_image verified createdAt badge")
+      .select("first_name last_name email phone_number profile_image badge is_verified_user")
       .lean({getters:true});
 
     if (!user) {

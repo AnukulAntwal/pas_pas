@@ -136,6 +136,14 @@ export const registerController = async (req, res) => {
         data: [],
       });
     }
+    // ✅ Count users
+    const userCount = await User.countDocuments();
+
+    // ✅ Assign badge if under 100 users
+    let badge = null;
+    if (userCount < 100) {
+      badge = "PRIME 100";
+    }
 
     let profileImage = null;
     if (req.file) {
@@ -152,6 +160,7 @@ export const registerController = async (req, res) => {
       copy_password: password,
       password: hashedPass,
       profile_image: profileImage,
+      badge,
     });
 
     const userDetails = await newUser.save();
@@ -404,6 +413,12 @@ export const editProfile = async (req, res) => {
     }
     if (badge !== undefined) {
       user.badge = badge;
+    }
+    // ✅ Auto verify user
+    if (user.is_valid_adhar === 1 && user.is_valid_pan === 1) {
+      user.is_verified_user = 1;
+    } else {
+      user.is_verified_user = 0;
     }
     const updatedUser = await user.save();
 

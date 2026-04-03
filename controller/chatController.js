@@ -108,8 +108,8 @@ export const getMessages = async (req, res) => {
       conversation_id,
       status: "active",
     })
-      .populate("sender_id", "first_name last_name email phone_number,badge")
-      .populate("receiver_id", "first_name last_name email phone_number,badge")
+      .populate("sender_id", "first_name last_name email phone_number,badge is_verified_user")
+      .populate("receiver_id", "first_name last_name email phone_number,badge is_verified_user")
       .sort({ updatedAt: -1 });
 
     if (!messages.length) {
@@ -368,7 +368,7 @@ export const getConversationList = async (req, res) => {
             : conv.sender_id;
 
         const chat_partner = await User.findById(chatPartnerId).select(
-          "first_name last_name profile_image badge"
+          "first_name last_name profile_image badge is_verified_user"
         );
         const host = `${req.protocol}://${req.get("host")}`;
         const user_name = chat_partner

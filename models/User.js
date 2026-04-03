@@ -113,6 +113,10 @@ const userSchema = new mongoose.Schema(
       enum: [0, 1],
       default: 0, // ✅ default 0
     },
+     is_verified_user: {
+      type: Number,
+      default: 0, // ✅ default 0
+    },
     badge: {
       type: String,
       default: null,

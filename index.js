@@ -8,6 +8,8 @@ import initSocket from "./socketServer.js";
 import path from "path";
 import { fileURLToPath } from "url";
 import "./cron/deliveryCron.js"; // 👈 THIS LINE IS MUST
+import "./cron/packageCron.js"; // 👈 THIS LINE IS MUST
+import "./cron/verifyUsersCron.js" // 👈 THIS LINE IS MUST
 import appVersion from './routes/app/index.js';
 
 dotenv.config();

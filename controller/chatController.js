@@ -368,7 +368,7 @@ export const getConversationList = async (req, res) => {
             : conv.sender_id;
 
         const chat_partner = await User.findById(chatPartnerId).select(
-          "first_name last_name profile_image badge is_verified_user"
+          "first_name last_name profile_image badge is_verified_user phone_number"
         );
         const host = `${req.protocol}://${req.get("host")}`;
         const user_name = chat_partner

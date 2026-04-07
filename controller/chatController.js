@@ -108,8 +108,8 @@ export const getMessages = async (req, res) => {
       conversation_id,
       status: "active",
     })
-      .populate("sender_id", "first_name last_name email phone_number,badge is_verified_user")
-      .populate("receiver_id", "first_name last_name email phone_number,badge is_verified_user")
+      .populate("sender_id", "first_name last_name email phone_number badge is_verified_user")
+      .populate("receiver_id", "first_name last_name email phone_number badge is_verified_user")
       .sort({ updatedAt: -1 });
 
     if (!messages.length) {

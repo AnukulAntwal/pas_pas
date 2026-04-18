@@ -410,10 +410,16 @@ export const getConversationList = async (req, res) => {
       })
     );
 
+    // Date range (last 7 days)
+    const today = new Date();
+    const lastWeek = new Date();
+    lastWeek.setDate(today.getDate() - 7);
+
     const unreadNotificationCount = await Notification.countDocuments({
       receiver_id: loggedUserObjectId,
       is_read: 0,
-      status: "active"
+      status: "active",
+      createdAt: { $gte: lastWeek, $lte: today },
     });
     // ✅ Final Response
     res.status(200).json({

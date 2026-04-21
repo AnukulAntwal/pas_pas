@@ -45,6 +45,7 @@ mongoose
   })
   .then(() => {
     console.log("✅ MongoDB connected");
+    console.log("🗄️ DB:", mongoose.connection.name);
 
     // Create HTTP server (for both Express + Socket.IO)
     const server = http.createServer(app);

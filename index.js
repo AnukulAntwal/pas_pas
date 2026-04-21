@@ -54,7 +54,9 @@ mongoose
       cors: { origin: "*" },
     });
     initSocket(io);
-
+    console.log("🌐 HOST:", req.headers.host);
+    console.log("📦 DB URI:", process.env.MONGO_URI);
+    console.log("🗄️ DB NAME:", mongoose.connection.name);
     // Start server
     const PORT = process.env.PORT || 4000;
     server.listen(PORT, "0.0.0.0", () =>

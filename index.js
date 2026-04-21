@@ -24,14 +24,6 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, "public")));
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
-app.use((req, res, next) => {
-  console.log("==== REQUEST INFO ====");
-  console.log("🌐 Host:", req.headers.host);
-  console.log("📍 URL:", req.originalUrl);
-  console.log("🗄️ DB:", mongoose.connection.name);
-  console.log("======================");
-  next();
-});
 
 // THEN routes
 app.use("/api", routes);

@@ -97,7 +97,7 @@ export const verifyOTP = async (req, res) => {
     }
 
     // OTP is valid
-   res.json({
+   res.status(200).json({
     status: "success",
     message: "OTP has been verified successfully.",
     data: { email },
@@ -156,7 +156,7 @@ export const resetPassword = async (req, res) => {
     // Mark OTP as used and delete it
     await OTP.deleteOne({ _id: otpRecord._id });
 
-    res.json({
+    res.status(200).json({
       status: "success",
       message: "Your password has been reset successfully.",
       data: user,

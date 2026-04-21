@@ -36,9 +36,13 @@ app.get("/terms", (req, res) => {
 app.get("/privacy", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "privacy.html"));
 });
-console.log("🌐 HOST:", req.headers.host);
-    console.log("📦 DB URI:", process.env.MONGO_URI);
-    console.log("🗄️ DB NAME:", mongoose.connection.name);
+app.use((req, res, next) => {
+  console.log("==== REQUEST INFO ====");
+  console.log("🌐 Host:", req.headers.host);
+  console.log("======================");
+  next();
+});
+  
 // Connect to MongoDB
 mongoose
   .connect(process.env.MONGO_URL, {
@@ -47,7 +51,8 @@ mongoose
   })
   .then(() => {
     console.log("✅ MongoDB connected");
-
+    console.log("🗄️ DB:", mongoose.connection.name);
+    
     // Create HTTP server (for both Express + Socket.IO)
     const server = http.createServer(app);
 
@@ -64,3 +69,5 @@ mongoose
 
   })
   .catch((err) => console.error("❌ MongoDB connection failed:", err));
+
+  

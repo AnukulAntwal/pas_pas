@@ -25,6 +25,8 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, "public")));
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
+// THEN routes
+app.use("/api", routes);
 // Routes
 app.use("/api", routes);
 app.use('/app',  appVersion);
@@ -37,6 +39,7 @@ app.get("/privacy", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "privacy.html"));
 });
 
+  
 // Connect to MongoDB
 mongoose
   .connect(process.env.MONGO_URL, {
@@ -46,7 +49,7 @@ mongoose
   .then(() => {
     console.log("✅ MongoDB connected");
     console.log("🗄️ DB:", mongoose.connection.name);
-
+    
     // Create HTTP server (for both Express + Socket.IO)
     const server = http.createServer(app);
 
@@ -54,8 +57,7 @@ mongoose
     const io = new Server(server, {
       cors: { origin: "*" },
     });
-    initSocket(io);
-
+    initSocket(io);    
     // Start server
     const PORT = process.env.PORT || 4000;
     server.listen(PORT, "0.0.0.0", () =>
@@ -64,3 +66,5 @@ mongoose
 
   })
   .catch((err) => console.error("❌ MongoDB connection failed:", err));
+
+  

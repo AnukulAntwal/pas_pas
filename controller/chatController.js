@@ -110,7 +110,7 @@ export const getMessages = async (req, res) => {
     })
       .populate("sender_id", "first_name last_name email phone_number badge is_verified_user")
       .populate("receiver_id", "first_name last_name email phone_number badge is_verified_user")
-      .sort({ updatedAt: -1 });
+      .sort({ createdAt: 1 });
 
     if (!messages.length) {
       return res.status(200).json({
@@ -153,7 +153,7 @@ export const getMessages = async (req, res) => {
     // 🟢 Step 5: Conversation logs
     const conversation_log = messages.map((msg) => ({
       conversation: msg.message,
-      conversation_date: moment(msg.updatedAt).tz("Asia/Kolkata").format("DD MMM YYYY, hh:mm A"),
+      conversation_date: moment(msg.createdAt).tz("Asia/Kolkata").format("DD MMM YYYY, hh:mm A"),
       conversation_id: msg.conversation_id,
       direction:
         String(msg.sender_id._id) === String(user_id) ? "outbound" : "inbound",

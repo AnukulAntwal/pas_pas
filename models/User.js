@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import Counter from "../models/Counter.js"
 import moment from "moment";
 
+
 const userSchema = new mongoose.Schema(
   {
     // id: { type: Number, unique: true },  // ✅ integer id
@@ -111,15 +112,20 @@ const userSchema = new mongoose.Schema(
     is_blocked: {
       type: Number,
       enum: [0, 1],
-      default: 0, // ✅ default 0
+      default: 0, //  default 0
     },
      is_verified_user: {
       type: Number,
-      default: 0, // ✅ default 0
+      enum: [0, 1, 2],
+      default: 0, //  default 0 1 for verified, 2 for rejected
     },
     badge: {
       type: String,
       default: null,
+    },
+    status: {
+      type: Number,
+      default: 1,
     },
     pan_resubmit_count: { type: Number, default: 0 },
     aadhar_resubmit_count: { type: Number, default: 0 },

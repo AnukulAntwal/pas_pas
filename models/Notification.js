@@ -23,5 +23,10 @@ notificationSchema.path("updatedAt").get(function (date) {
   return moment(date).format("YYYY-MM-DD HH:mm:ss");
 });
 
+notificationSchema.index(
+  { createdAt: 1 },
+  { expireAfterSeconds: 60 * 60 * 24 * 15 }
+);
+
 const Notification = mongoose.model("Notification", notificationSchema);
 export default Notification;

@@ -1,14 +1,23 @@
 import express from 'express'
 const router=express.Router()
-import { getDashboardStats, getUserById, getUsers } from '../../controller/userController.js';
+import {
+  getDashboardStats,
+  getAdminDashboardKPIs,
+  getAdminDashboardEnterprise,
+  getUserById,
+  getUsers,
+  verifyUser,
+} from '../../controller/userController.js';
 import { updateUser } from '../../controller/userController.js';
 import { uploadDocs } from '../../middlewares/upload.js';
 import verifyCustomToken from "../../middlewares/authAdmin.js";
 
 
-router.get('/getUsers',getUsers)
-router.get('/getUserById/:id',getUserById)
-router.get('/getDashboardStats',getDashboardStats)
+router.get('/getUsers', getUsers)
+router.get('/getUserById/:id', getUserById)
+router.get('/getDashboardStats', verifyCustomToken, getDashboardStats)
+router.get('/dashboard/kpi', verifyCustomToken, getAdminDashboardKPIs)
+router.get('/dashboard/enterprise', verifyCustomToken, getAdminDashboardEnterprise)
 router.put(
 	'/updateUser/:id'	,
 	uploadDocs.fields([
@@ -19,6 +28,8 @@ router.put(
 	]),
 	updateUser
 )
+router.put("/verifyUser/:id", verifyUser);
+
 
 
 

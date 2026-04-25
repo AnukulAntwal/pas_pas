@@ -110,7 +110,7 @@ export const getMessages = async (req, res) => {
     })
       .populate("sender_id", "first_name last_name email phone_number badge is_verified_user")
       .populate("receiver_id", "first_name last_name email phone_number badge is_verified_user")
-      .sort({ createdAt: 1 });
+      .sort({ createdAt: 1, _id: 1 });
 
     if (!messages.length) {
       return res.status(200).json({
@@ -338,8 +338,8 @@ export const getConversationList = async (req, res) => {
           sender_id: { $first: "$sender_id" },
           receiver_id: { $first: "$receiver_id" },
           is_read: { $first: "$is_read" },
-          updated_time: { $first: "$createdAt" },
-          created_time: { $last: "$createdAt" },
+          updated_time: { $max: "$createdAt" },
+          created_time: { $min: "$createdAt" },
           unread_count: {
             $sum: {
               $cond: [

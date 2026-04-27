@@ -155,6 +155,7 @@ export const getMessages = async (req, res) => {
       conversation: msg.message,
       conversation_date: moment(msg.createdAt).tz("Asia/Kolkata").format("DD MMM YYYY, hh:mm A"),
       conversation_id: msg.conversation_id,
+      is_disabled: msg.is_disabled,
       direction:
         String(msg.sender_id._id) === String(user_id) ? "outbound" : "inbound",
       is_read: msg.is_read ? 1 : 0,
@@ -336,6 +337,7 @@ export const getConversationList = async (req, res) => {
           conversation_for: { $first: "$conversation_for" },
           reference_id: { $first: "$reference_id" },
           sender_id: { $first: "$sender_id" },
+          is_disabled: { $first: "$is_disabled" },
           receiver_id: { $first: "$receiver_id" },
           is_read: { $first: "$is_read" },
           updated_time: { $max: "$createdAt" },
@@ -398,6 +400,7 @@ export const getConversationList = async (req, res) => {
         return {
           conversation_id: conv._id,
           conversation_for: conv.conversation_for,
+          is_disabled: conv.is_disabled,
           user_name,
           profile_image,
           last_message: conv.last_message,

@@ -21,6 +21,11 @@ attachment: {
     type: String,
     default: null, // for file/pdf/audio etc.
 },
+  is_disabled: {
+    type: Number,
+    enum: [0, 1], // 0 = active, 1 = disabled
+    default: 0
+  },
   is_read: { type: Number, default: 0 }, // message read hua ya nahi
   status: { type: String, enum: ["active", "deleted"], default: "active" }, // delete flag
 }, {
@@ -36,5 +41,9 @@ chatSchema.path("createdAt").get(function (date) {
 chatSchema.path("updatedAt").get(function (date) {
   return moment(date).format("YYYY-MM-DD HH:mm:ss");
 });
+chatSchema.index(
+  { createdAt: 1 },
+  { expireAfterSeconds: 60 * 60 * 24 * 5 } // 5 days
+);
 const Chat = mongoose.model("Chat", chatSchema);
 export default Chat;

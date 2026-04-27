@@ -99,7 +99,7 @@ deliveryServiceSchema.path("updatedAt").get(function (date) {
 deliveryServiceSchema.pre("validate", function (next) {
   if (!this.expiresAt && this.date_time) {
     const expiryDate = new Date(this.date_time);
-    expiryDate.setDate(expiryDate.getDate() + 15);
+    expiryDate.setDate(expiryDate.getDate() + 5);
     this.expiresAt = expiryDate;
   }
   next();

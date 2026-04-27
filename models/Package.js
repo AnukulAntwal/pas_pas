@@ -101,7 +101,7 @@ packageSchema.pre("save", function (next) {
   if (this.isNew || this.isModified("date_time")) {
     // Calculate expiry: date_time + 15 days
     const expiryDate = new Date(this.date_time);
-    expiryDate.setDate(expiryDate.getDate() + 15);
+    expiryDate.setDate(expiryDate.getDate() + 5);
     this.expiresAt = expiryDate;
   }
   next();

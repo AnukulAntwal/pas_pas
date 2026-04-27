@@ -293,7 +293,7 @@ export const cancelBookingByReference = async (req, res) => {
     /* =========================
        DECIDE RECEIVER + MESSAGE
     ========================= */
-    
+
     let receiverId;
     let message_text = "";
 
@@ -1563,6 +1563,190 @@ export const deleteParcelOrDeliveryService = async (req, res) => {
       status: "fail",
       message: error.message,
       data: [],
+    });
+  }
+};
+
+export const completedTransportOrParcel = async (req, res) => {
+  try {
+    const userId = req.user._id.toString();
+
+    /* =========================
+       STEP 1: FETCH BOOKINGS
+    ========================= */
+
+    const bookings = await Booking.find({
+      booking_type: "Booked", // ya "Completed" agar tum add karte ho
+      is_booked: 1, // assume completed => 0
+      $or: [
+        { booked_by: userId } // user ne book kiya
+      ]
+    })
+      .select("reference_id type booked_by")
+      .lean();
+
+    if (!bookings.length) {
+      return res.status(200).json({
+        status: "success",
+        message: "No completed data found",
+        count: 0,
+        data: []
+      });
+    }
+
+    /* =========================
+       STEP 2: SEPARATE IDS
+    ========================= */
+
+    const deliveryIds = [];
+    const packageIds = [];
+
+    bookings.forEach(b => {
+      if (b.type === 1) deliveryIds.push(b.reference_id);
+      if (b.type === 0) packageIds.push(b.reference_id);
+    });
+
+    /* =========================
+       STEP 3: FETCH SERVICES
+    ========================= */
+
+    const deliveries = await DeliveryService.find({
+      _id: { $in: deliveryIds },
+      is_completed: 1
+    })
+      .select("start_location end_location date_time price transport_type uid")
+      .lean();
+
+    const packages = await Package.find({
+      _id: { $in: packageIds },
+      is_completed: 1
+    })
+      .select("pickup_location drop_location date_time price package_type uid")
+      .lean();
+
+    /* =========================
+       STEP 4: INCLUDE OWNER CASE
+    ========================= */
+
+    const ownerDeliveries = await DeliveryService.find({
+      uid: userId,
+      is_completed: 1
+    })
+      .select("start_location end_location date_time price transport_type uid booked_by")
+      .lean();
+
+    const ownerPackages = await Package.find({
+      uid: userId,
+      is_completed: 1
+    })
+      .select("pickup_location drop_location date_time price package_type uid booked_by")
+      .lean();
+
+    /* =========================
+       STEP 5: MERGE ALL
+    ========================= */
+
+    const allDeliveries = [...deliveries, ...ownerDeliveries];
+    const allPackages = [...packages, ...ownerPackages];
+
+    /* =========================
+       STEP 6: COLLECT USER IDS
+    ========================= */
+
+    const userIds = new Set();
+
+    [...allDeliveries, ...allPackages].forEach(item => {
+      if (item.uid) userIds.add(item.uid.toString());
+      if (item.booked_by) userIds.add(item.booked_by.toString());
+    });
+
+    /* =========================
+       STEP 7: FETCH USERS
+    ========================= */
+
+    const users = await User.find({
+      _id: { $in: Array.from(userIds) }
+    })
+      .select("first_name last_name phone_number profile_image badge is_verified_user")
+      .lean();
+
+    const userMap = {};
+    users.forEach(u => {
+      userMap[u._id.toString()] = u;
+    });
+
+    const host = `${req.protocol}://${req.get("host")}`;
+
+    /* =========================
+       STEP 8: FORMAT RESPONSE
+    ========================= */
+
+    const formatUser = (user) => {
+      if (!user) return null;
+      return {
+        first_name: user.first_name,
+        last_name: user.last_name,
+        phone_number: user.phone_number,
+        badge: user.badge,
+        is_verified_user: user.is_verified_user,
+        profile_image: user.profile_image
+          ? `${host}/uploads/profile_images/${user.profile_image}`
+          : null
+      };
+    };
+
+    const formattedDeliveries = allDeliveries.map(item => {
+      const isOwner = item.uid?.toString() === userId;
+      const otherUserId = isOwner ? item.booked_by : item.uid;
+
+      return {
+        type: 1,
+        _id: item._id,
+        from: item.start_location,
+        to: item.end_location,
+        date_time: item.date_time,
+        price: item.price,
+        booking_role: isOwner ? "booked_from_me" : "booked_by_me",
+        user_details: formatUser(userMap[otherUserId?.toString()])
+      };
+    });
+
+    const formattedPackages = allPackages.map(item => {
+      const isOwner = item.uid?.toString() === userId;
+      const otherUserId = isOwner ? item.booked_by : item.uid;
+
+      return {
+        type: 0,
+        _id: item._id,
+        from: item.pickup_location,
+        to: item.drop_location,
+        date_time: item.date_time,
+        price: item.price,
+        booking_role: isOwner ? "booked_from_me" : "booked_by_me",
+        user_details: formatUser(userMap[otherUserId?.toString()])
+      };
+    });
+
+    /* =========================
+       STEP 9: MERGE + SORT
+    ========================= */
+
+    const combinedData = [...formattedDeliveries, ...formattedPackages]
+      .sort((a, b) => new Date(b.date_time) - new Date(a.date_time));
+
+    return res.status(200).json({
+      status: "success",
+      message: "Completed services fetched",
+      count: combinedData.length,
+      data: combinedData
+    });
+
+  } catch (error) {
+    console.error("Error:", error);
+    return res.status(500).json({
+      status: "fail",
+      message: error.message,
+      data: []
     });
   }
 };

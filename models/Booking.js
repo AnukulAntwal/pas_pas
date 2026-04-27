@@ -23,9 +23,9 @@ const bookingSchema = new mongoose.Schema(
         type: String,
         default: ''
     },
-    is_booked: {
+    conversation_id: {
       type: Number,
-      enum: [0, 1], // 0=not booked ,1= booked
+      default: null,
     },
     booking_type: {
       type: String,

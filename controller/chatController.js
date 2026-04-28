@@ -155,7 +155,6 @@ export const getMessages = async (req, res) => {
       conversation: msg.message,
       conversation_date: moment(msg.createdAt).tz("Asia/Kolkata").format("DD MMM YYYY, hh:mm A"),
       conversation_id: msg.conversation_id,
-      is_disabled: msg.is_disabled,
       direction:
         String(msg.sender_id._id) === String(user_id) ? "outbound" : "inbound",
       is_read: msg.is_read ? 1 : 0,
@@ -178,10 +177,10 @@ export const getMessages = async (req, res) => {
       status: "success",
       message: "Data fetched successfully",
       data: {
+        is_disabled,
         contact_details,
         reference_details,
         conversation_log,
-        is_disabled
       },
     });
   } catch (error) {

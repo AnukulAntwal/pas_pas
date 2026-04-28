@@ -119,7 +119,7 @@ export const getMessages = async (req, res) => {
         data: [],
       });
     }
-
+    const is_disabled = messages.length ? messages[0].is_disabled : 0;
     // 🟢 Step 3: Get reference details
     const firstMsg = messages[0];
     let refDetails = null;
@@ -181,6 +181,7 @@ export const getMessages = async (req, res) => {
         contact_details,
         reference_details,
         conversation_log,
+        is_disabled
       },
     });
   } catch (error) {

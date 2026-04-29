@@ -100,3 +100,96 @@ export const getAppVersion = async (req, res) => {
   }
 };
 
+export const getSupportTickets = async (req, res) => {
+  try {
+    const {
+      page = 1,
+      limit = 10,
+      type,
+      search,
+      sortBy = "createdAt",
+      order = "desc"
+    } = req.query;
+
+    const user_id = req.user._id;
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    /* =========================
+       FILTER BUILD
+    ========================= */
+
+    let filter = {
+      user_id
+    };
+
+    if (type) {
+      filter.type = type; // BUG / SUPPORT / FEEDBACK
+    }
+
+    if (search) {
+      filter.$or = [
+        { subject: { $regex: search, $options: "i" } },
+        { message: { $regex: search, $options: "i" } }
+      ];
+    }
+
+    /* =========================
+       SORTING
+    ========================= */
+
+    const sortOrder = order === "asc" ? 1 : -1;
+
+    /* =========================
+       FETCH DATA
+    ========================= */
+
+    const tickets = await SupportTicket.find(filter)
+      .sort({ [sortBy]: sortOrder })
+      .skip(skip)
+      .limit(parseInt(limit))
+      .lean();
+
+    const total = await SupportTicket.countDocuments(filter);
+
+    /* =========================
+       FORMAT RESPONSE
+    ========================= */
+
+    const formattedData = tickets.map(ticket => ({
+      id: ticket._id,
+      type: ticket.type,
+      subject: ticket.subject,
+      message: ticket.message,
+      user_name: ticket.user_name,
+      user_email: ticket.user_email,
+      platform: ticket.platform,
+      app_version: ticket.app_version,
+      created_at: ticket.createdAt,
+      updated_at: ticket.updatedAt
+    }));
+
+    /* =========================
+       FINAL RESPONSE
+    ========================= */
+
+    return res.status(200).json({
+      status: "success",
+      message: "Support tickets fetched successfully",
+      data: formattedData,
+      pagination: {
+        total,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total_pages: Math.ceil(total / limit)
+      }
+    });
+
+  } catch (error) {
+    return res.status(500).json({
+      status: "fail",
+      message: error.message,
+      data: []
+    });
+  }
+};

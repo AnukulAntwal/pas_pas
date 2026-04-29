@@ -415,7 +415,7 @@ export const getMyBookings = async (req, res) => {
           .select("uid start_location end_location price date_time")
           .lean();
 
-        if (!service || service.date_time < todayStart) continue;
+        if (!service || service.date_time < todayStart || service.is_completed === 1) continue;
 
         referenceOwner = await User.findById(service.uid)
           .select("first_name last_name phone_number email profile_image badge is_verified_user")
@@ -460,8 +460,7 @@ export const getMyBookings = async (req, res) => {
           .select("uid pickup_location drop_location price date_time")
           .lean();
 
-        if (!parcel || parcel.date_time < todayStart) continue;
-
+        if (!parcel || parcel.date_time < todayStart || parcel.is_completed === 1) continue;
         referenceOwner = await User.findById(parcel.uid)
           .select("first_name last_name phone_number email badge profile_image is_verified_user")
           .lean();
@@ -927,7 +926,8 @@ export const getMyPublished = async (req, res) => {
     // 🧭 Fetch rides
 const rides = await DeliveryService.find({
   uid: user_id,
-  date_time: { $gte: todayStart } // ✅ today & future only
+  date_time: { $gte: todayStart }, // ✅ today & future only
+  is_completed: 0 // ✅ only active rides
 })
   .sort({ createdAt: -1 })
   .lean();
@@ -936,7 +936,8 @@ const rides = await DeliveryService.find({
 // 📦 Fetch packages
 const packages = await Package.find({
   uid: user_id,
-  date_time: { $gte: todayStart } // ✅ today & future only
+  date_time: { $gte: todayStart }, // ✅ today & future only
+  is_completed: 0 // ✅ only active packages
 })
   .sort({ createdAt: -1 })
   .lean();
@@ -1572,20 +1573,62 @@ export const completedTransportOrParcel = async (req, res) => {
     const userId = req.user._id.toString();
 
     /* =========================
-       STEP 1: FETCH BOOKINGS
+       STEP 1: FETCH BOOKINGS (BOOKED BY ME)
     ========================= */
 
     const bookings = await Booking.find({
-      booking_type: "Booked", // ya "Completed" agar tum add karte ho
-      is_booked: 1, // assume completed => 0
-      $or: [
-        { booked_by: userId } // user ne book kiya
-      ]
+      booking_type: "Booked",
+      is_booked: 1,
+      booked_by: userId
     })
       .select("reference_id type booked_by")
       .lean();
 
-    if (!bookings.length) {
+    /* =========================
+       STEP 2: OWNER BOOKINGS (IMPORTANT FIX)
+    ========================= */
+
+    // 1. meri completed deliveries
+    const myDeliveries = await DeliveryService.find({
+      uid: userId,
+      is_completed: 1
+    }).select("_id").lean();
+
+    const myDeliveryIds = myDeliveries.map(d => d._id.toString());
+
+    const ownerDeliveryBookings = await Booking.find({
+      reference_id: { $in: myDeliveryIds },
+      is_booked: 1
+    })
+      .select("reference_id type booked_by")
+      .lean();
+
+    // 2. meri completed packages
+    const myPackages = await Package.find({
+      uid: userId,
+      is_completed: 1
+    }).select("_id").lean();
+
+    const myPackageIds = myPackages.map(p => p._id.toString());
+
+    const ownerPackageBookings = await Booking.find({
+      reference_id: { $in: myPackageIds },
+      is_booked: 1
+    })
+      .select("reference_id type booked_by")
+      .lean();
+
+    /* =========================
+       STEP 3: MERGE BOOKINGS
+    ========================= */
+
+    const allBookings = [
+      ...bookings,
+      ...ownerDeliveryBookings,
+      ...ownerPackageBookings
+    ];
+
+    if (!allBookings.length) {
       return res.status(200).json({
         status: "success",
         message: "No completed data found",
@@ -1595,74 +1638,56 @@ export const completedTransportOrParcel = async (req, res) => {
     }
 
     /* =========================
-       STEP 2: SEPARATE IDS
+       STEP 4: SEPARATE IDS
     ========================= */
 
     const deliveryIds = [];
     const packageIds = [];
 
-    bookings.forEach(b => {
+    allBookings.forEach(b => {
       if (b.type === 1) deliveryIds.push(b.reference_id);
       if (b.type === 0) packageIds.push(b.reference_id);
     });
 
     /* =========================
-       STEP 3: FETCH SERVICES
+       STEP 5: FETCH SERVICES
     ========================= */
 
     const deliveries = await DeliveryService.find({
       _id: { $in: deliveryIds },
       is_completed: 1
     })
-      .select("start_location end_location date_time price transport_type uid")
+      .select("start_location end_location date_time price uid")
       .lean();
 
     const packages = await Package.find({
       _id: { $in: packageIds },
       is_completed: 1
     })
-      .select("pickup_location drop_location date_time price package_type uid")
+      .select("pickup_location drop_location date_time price uid")
       .lean();
 
     /* =========================
-       STEP 4: INCLUDE OWNER CASE
+       STEP 6: BOOKING MAP (IMPORTANT FIX)
     ========================= */
 
-    const ownerDeliveries = await DeliveryService.find({
-      uid: userId,
-      is_completed: 1
-    })
-      .select("start_location end_location date_time price transport_type uid booked_by")
-      .lean();
-
-    const ownerPackages = await Package.find({
-      uid: userId,
-      is_completed: 1
-    })
-      .select("pickup_location drop_location date_time price package_type uid booked_by")
-      .lean();
+    const bookingMap = {};
+    allBookings.forEach(b => {
+      bookingMap[b.reference_id.toString()] = b.booked_by;
+    });
 
     /* =========================
-       STEP 5: MERGE ALL
-    ========================= */
-
-    const allDeliveries = [...deliveries, ...ownerDeliveries];
-    const allPackages = [...packages, ...ownerPackages];
-
-    /* =========================
-       STEP 6: COLLECT USER IDS
+       STEP 7: USER IDS
     ========================= */
 
     const userIds = new Set();
 
-    [...allDeliveries, ...allPackages].forEach(item => {
+    [...deliveries, ...packages].forEach(item => {
       if (item.uid) userIds.add(item.uid.toString());
-      if (item.booked_by) userIds.add(item.booked_by.toString());
-    });
 
-    /* =========================
-       STEP 7: FETCH USERS
-    ========================= */
+      const bookedBy = bookingMap[item._id.toString()];
+      if (bookedBy) userIds.add(bookedBy.toString());
+    });
 
     const users = await User.find({
       _id: { $in: Array.from(userIds) }
@@ -1676,10 +1701,6 @@ export const completedTransportOrParcel = async (req, res) => {
     });
 
     const host = `${req.protocol}://${req.get("host")}`;
-
-    /* =========================
-       STEP 8: FORMAT RESPONSE
-    ========================= */
 
     const formatUser = (user) => {
       if (!user) return null;
@@ -1695,9 +1716,14 @@ export const completedTransportOrParcel = async (req, res) => {
       };
     };
 
-    const formattedDeliveries = allDeliveries.map(item => {
-      const isOwner = item.uid?.toString() === userId;
-      const otherUserId = isOwner ? item.booked_by : item.uid;
+    /* =========================
+       STEP 8: FORMAT
+    ========================= */
+
+    const formattedDeliveries = deliveries.map(item => {
+      const isOwner = item.uid.toString() === userId;
+      const bookedBy = bookingMap[item._id.toString()];
+      const otherUserId = isOwner ? bookedBy : item.uid;
 
       return {
         type: 1,
@@ -1711,9 +1737,10 @@ export const completedTransportOrParcel = async (req, res) => {
       };
     });
 
-    const formattedPackages = allPackages.map(item => {
-      const isOwner = item.uid?.toString() === userId;
-      const otherUserId = isOwner ? item.booked_by : item.uid;
+    const formattedPackages = packages.map(item => {
+      const isOwner = item.uid.toString() === userId;
+      const bookedBy = bookingMap[item._id.toString()];
+      const otherUserId = isOwner ? bookedBy : item.uid;
 
       return {
         type: 0,
@@ -1726,10 +1753,6 @@ export const completedTransportOrParcel = async (req, res) => {
         user_details: formatUser(userMap[otherUserId?.toString()])
       };
     });
-
-    /* =========================
-       STEP 9: MERGE + SORT
-    ========================= */
 
     const combinedData = [...formattedDeliveries, ...formattedPackages]
       .sort((a, b) => new Date(b.date_time) - new Date(a.date_time));

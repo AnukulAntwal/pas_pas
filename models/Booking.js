@@ -36,6 +36,10 @@ const bookingSchema = new mongoose.Schema(
           type: mongoose.Schema.Types.ObjectId,
           ref: "User"
     },
+    is_counted: {
+      type: Boolean,
+      default: false
+    }
   },
   { timestamps: true }
 );

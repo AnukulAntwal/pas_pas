@@ -11,6 +11,7 @@ import {
 import { updateUser } from '../../controller/userController.js';
 import { uploadDocs } from '../../middlewares/upload.js';
 import verifyCustomToken from "../../middlewares/authAdmin.js";
+import { getSupportTickets } from '../../controller/supportTicketController.js';
 
 
 router.get('/getUsers', getUsers)
@@ -29,8 +30,7 @@ router.put(
 	updateUser
 )
 router.put("/verifyUser/:id", verifyUser);
-
-
+router.get("/support",verifyCustomToken,getSupportTickets)
 
 
 export default router;

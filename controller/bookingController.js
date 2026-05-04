@@ -378,7 +378,8 @@ export const getMyBookings = async (req, res) => {
     const todayStart = moment().startOf("day").toDate();
 
     const bookings = await Booking.find({
-      is_booked: 1
+      is_booked: 1,
+      is_counted: false,
     })
       .sort({ createdAt: -1 })
       .lean();

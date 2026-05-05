@@ -120,6 +120,18 @@
     color: #c62828;
     border: 1px solid #f5c6cb;
 }
+.platform {
+        text-align: center;
+        font-size: clamp(12px, 3vw, 13px);
+        color: #888;
+        margin-bottom: 10px;
+    }
+    .date-display {
+        text-align: center;
+        font-size: clamp(12px, 3vw, 13px);
+        color: #bbb;
+        margin-bottom: 15px;
+    }
 </style>
 
 </head>
@@ -127,7 +139,11 @@
 
 <div class="container">
     <h2>Contact Us</h2>
+    <div class="platform">
+        PasPas Support
+    </div>
 
+    <div class="date-display" id="currentDate"></div>
     <!-- ✅ FORM -->
     <form id="contactForm">
         <div class="input-group">
@@ -148,11 +164,6 @@
         <div class="input-group">
             <label>Message</label>
             <textarea name="message" placeholder="Write your message in detail..." required></textarea>
-        </div>
-
-        <!-- Date -->
-        <div class="input-group date-group">
-            <span id="currentDate" class="date-text"></span>
         </div>
 
         <button type="submit">Send Message</button>

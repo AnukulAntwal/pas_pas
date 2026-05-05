@@ -40,6 +40,10 @@ app.get("/privacy", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "privacy.html"));
 });
 
+app.get("/contact", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "contactus.html"));
+});
+
   
 // Connect to MongoDB
 mongoose

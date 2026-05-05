@@ -12,6 +12,7 @@ import notificationRoutes from '../notification/index.js';
 import bookingRoute from '../booking/index.js';  
 import userRoutes from '../users/index.js'; 
 import supportTicketRoute from '../support/index.js';
+import ContactUs from '../contact-us/index.js';
 const router = express.Router();
 
 // mount auth routes at /auth
@@ -28,7 +29,7 @@ router.use('/booking', verifyCustomToken, bookingRoute);
 router.use('/publications', verifyCustomToken, bookingRoute);
 router.use('/published', verifyCustomToken, bookingRoute);
 router.use('/contact', verifyCustomToken, supportTicketRoute);
-
+router.use("/contact-us", ContactUs);
 
 router.use('/users',  userRoutes);
 

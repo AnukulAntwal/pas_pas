@@ -1,4 +1,5 @@
 import User from "../models/User.js";
+import DeletedAccount from "../models/DeletedAccount.js";
 import {
   loginValidate,
   registerValidate,
@@ -496,6 +497,58 @@ export const getMyProfile = async (req, res) => {
     return res.status(500).json({
       status: "fail",
       message: error.message,
+    });
+  }
+};
+
+export const deleteAccountByEmail = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    // 🔒 Validation
+    if (!email) {
+      return res.status(400).json({
+        status: "fail",
+        message: "Email address is required to process this request.",
+        data: [],
+      });
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // 🔍 Check user exists
+    const user = await User.findOne({ email: normalizedEmail });
+
+    if (!user) {
+      return res.status(404).json({
+        status: "fail",
+        message: "No account found with the provided email address.",
+        data: []
+      });
+    }
+
+    // 🗑️ Delete from Users
+    await User.deleteOne({ _id: user._id });
+
+    // 💾 Save in deleted_accounts
+    await DeletedAccount.updateOne(
+      { email: normalizedEmail },
+      { $set: { email: normalizedEmail, deleted_at: new Date() } },
+      { upsert: true }
+    );
+
+    return res.status(200).json({
+      status: "success",
+      message: "Your account has been successfully deleted.",
+      data: []
+    });
+
+  } catch (error) {
+    console.error("Delete account error:", error);
+    return res.status(500).json({
+      status: "fail",
+      message: "An unexpected error occurred while processing your request. Please try again later.",
+      data: []
     });
   }
 };

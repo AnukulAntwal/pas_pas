@@ -33,6 +33,14 @@ export const requestPasswordReset = async (req, res) => {
     // 🛑 NEW: Check deleted account (ONLY for signup/account verification)
     if (purpose === "account") {
       const deleted = await DeletedAccount.findOne({ email: normalizedEmail });
+      const existingUser = await User.findOne({ email: normalizedEmail });
+      if (existingUser) {
+        return res.status(409).json({
+          status: "fail",
+          message: "User already exists with this email",
+          data: [],
+        });
+      }
 
       if (deleted) {
         return res.status(403).json({

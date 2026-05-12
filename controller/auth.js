@@ -42,16 +42,106 @@ import { deleteOldFile } from "../utils/deleteOldFile.js";
 //     return res.status(500).json({status: 'fail', error: e.message });
 //   }
 // };
+// export const loginController = async (req, res) => {
+//   // Step 1: Validate request body
+//   const { error } = loginValidate.validate(req.body);
+//   if (error) return res.status(400).json({ error: error.details[0].message });
+
+//   try {
+//     const { email, password, device_type, device_token } = req.body;
+
+//     // Step 2: Find user
+//     const user = await User.findOne({ email });
+//     if (!user) {
+//       return res.status(401).json({
+//         status: "fail",
+//         message: "Invalid email or password",
+//         data: [],
+//       });
+//     }
+
+//     // Step 3: Compare password
+//     const isMatch = await bcrypt.compare(password, user.password);
+//     if (!isMatch) {
+//       return res.status(401).json({
+//         status: "fail",
+//         message: "Invalid email or password",
+//         data: [],
+//       });
+//     }
+//     // ✅ Step 2.1: Check if user is blocked
+//    const message = user.default_message?.trim() || 
+//  "Your account has been blocked due to unverified documents. Please contact paspaspackage@gmail.com";
+    
+//     if (user.is_blocked === 1) {
+//       return res.status(403).json({
+//         status: "fail",
+//         message:message,
+//         data: [],
+//       });
+//     }
+//     // Step 4: Generate random token
+//     const token = crypto.randomBytes(32).toString("hex");
+
+//     // Step 5: Update user record
+//     user.device_type = device_type;
+//     user.device_token = device_token;
+//     user.last_login = new Date();
+//     user.token = token;
+
+//     const userSave = await user.save();
+//     // ✅ Create base URL
+//     const baseUrl = `${req.protocol}://${req.get("host")}`;
+
+//     // ✅ Convert mongoose document to normal object
+//     const userObj = userSave.toObject();
+
+//     /* ================= PROFILE IMAGE ================= */
+
+//     if (userObj.profile_image) {
+//       userObj.profile_image = `${baseUrl}/uploads/profile_images/${userObj.profile_image}`;
+//     } else {
+//       userObj.profile_image = null;
+//     }
+
+//     // Step 6: Respond with token
+//     return res.status(200).json({
+//       status: "success",
+//       message: "Login successful",
+//       data: userObj,
+//     });
+//   } catch (e) {
+//     return res.status(500).json({
+//       status: "fail",
+//       message: e.message,
+//       data: [],
+//     });
+//   }
+// };
+
 export const loginController = async (req, res) => {
-  // Step 1: Validate request body
+
   const { error } = loginValidate.validate(req.body);
-  if (error) return res.status(400).json({ error: error.details[0].message });
+
+  if (error) {
+    return res.status(400).json({
+      error: error.details[0].message,
+    });
+  }
 
   try {
-    const { email, password, device_type, device_token } = req.body;
 
-    // Step 2: Find user
+    const {
+      email,
+      password,
+      device_type,
+      device_token,
+      login_type, // optional
+    } = req.body;
+
+    // ✅ Find user
     const user = await User.findOne({ email });
+
     if (!user) {
       return res.status(401).json({
         status: "fail",
@@ -60,8 +150,9 @@ export const loginController = async (req, res) => {
       });
     }
 
-    // Step 3: Compare password
+    // ✅ Password compare
     const isMatch = await bcrypt.compare(password, user.password);
+
     if (!isMatch) {
       return res.status(401).json({
         status: "fail",
@@ -69,54 +160,81 @@ export const loginController = async (req, res) => {
         data: [],
       });
     }
-    // ✅ Step 2.1: Check if user is blocked
-   const message = user.default_message?.trim() || 
- "Your account has been blocked due to unverified documents. Please contact paspaspackage@gmail.com";
-    
-    if (user.is_blocked === 1) {
+
+    // ==================================================
+    // ✅ ONLY ADMIN PANEL LOGIN CHECK
+    // ==================================================
+
+    // Web/Admin panel se login_type=admin bhejna hoga
+    if (login_type === "admin" && user.role !== "admin") {
+
       return res.status(403).json({
         status: "fail",
-        message:message,
+        message: "Only admin can login in admin panel",
         data: [],
       });
+
     }
-    // Step 4: Generate random token
+
+    // ==================================================
+    // ✅ BLOCK CHECK ONLY FOR APP USERS
+    // ==================================================
+
+    // Agar login_type nahi hai => app login
+    const isAppLogin = !login_type;
+
+    const message =
+      user.default_message?.trim() ||
+      "Your account has been blocked.";
+
+    if (isAppLogin && user.is_blocked === 1) {
+
+      return res.status(403).json({
+        status: "fail",
+        message: message,
+        data: [],
+      });
+
+    }
+
+    // ✅ Generate token
     const token = crypto.randomBytes(32).toString("hex");
 
-    // Step 5: Update user record
     user.device_type = device_type;
     user.device_token = device_token;
     user.last_login = new Date();
     user.token = token;
 
     const userSave = await user.save();
-    // ✅ Create base URL
+
     const baseUrl = `${req.protocol}://${req.get("host")}`;
 
-    // ✅ Convert mongoose document to normal object
     const userObj = userSave.toObject();
 
-    /* ================= PROFILE IMAGE ================= */
-
+    // ✅ Profile image
     if (userObj.profile_image) {
-      userObj.profile_image = `${baseUrl}/uploads/profile_images/${userObj.profile_image}`;
+      userObj.profile_image =
+        `${baseUrl}/uploads/profile_images/${userObj.profile_image}`;
     } else {
       userObj.profile_image = null;
     }
 
-    // Step 6: Respond with token
     return res.status(200).json({
       status: "success",
       message: "Login successful",
       data: userObj,
     });
+
   } catch (e) {
+
     return res.status(500).json({
       status: "fail",
       message: e.message,
       data: [],
     });
+
   }
+
 };
 
 export const registerController = async (req, res) => {

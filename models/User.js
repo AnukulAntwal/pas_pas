@@ -127,6 +127,11 @@ const userSchema = new mongoose.Schema(
       type: Number,
       default: 1,
     },
+    role: {
+      type: String,
+      enum: ["user", "admin"],
+      default: "user",
+    },
     pan_resubmit_count: { type: Number, default: 0 },
     aadhar_resubmit_count: { type: Number, default: 0 },
     resetPasswordToken: { type: String },

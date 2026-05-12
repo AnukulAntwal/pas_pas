@@ -12,7 +12,10 @@ export const loginValidate = Joi.object({
     "any.required": "Password is required",
   }),
   device_type: Joi.string().required(),
-  device_token: Joi.string().required()
+  device_token: Joi.string().required(),
+  login_type: Joi.string()
+    .valid("admin")
+    .optional(),
 });
 
 

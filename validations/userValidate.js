@@ -2,10 +2,27 @@ import Joi from "joi";
 
 
 export const loginValidate = Joi.object({
-  email: Joi.string().email().min(3).required().messages({
+  email: Joi.string()
+  .email()
+  .min(3)
+  .required()
+  .custom((value, helpers) => {
+
+    const domain = value.split("@")[1]?.toLowerCase();
+
+    // ✅ Block only yopmail
+    if (domain === "yopmail.com") {
+      return helpers.error("any.invalid");
+    }
+
+    return value;
+
+  })
+  .messages({
     "string.email": "Valid email required",
     "string.min": "Email should be at least 3 characters",
     "any.required": "Email is required",
+    "any.invalid": "Yopmail emails are not allowed",
   }),
   password: Joi.string().min(3).required().messages({
     "string.min": "Password should be at least 3 characters",
@@ -43,9 +60,25 @@ export const registerValidate = Joi.object({
       "any.required": "Phone number is required",
     }),
 
-  email: Joi.string().email().required().messages({
+ email: Joi.string()
+  .email()
+  .required()
+  .custom((value, helpers) => {
+
+    const domain = value.split("@")[1]?.toLowerCase();
+
+    // ✅ Block yopmail
+    if (domain === "yopmail.com") {
+      return helpers.error("any.invalid");
+    }
+
+    return value;
+
+  })
+  .messages({
     "string.email": "Valid email required",
     "any.required": "Email is required",
+    "any.invalid": "Yopmail emails are not allowed",
   }),
 
   password: Joi.string().min(5).required().messages({

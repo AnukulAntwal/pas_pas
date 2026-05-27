@@ -477,6 +477,7 @@ export const updateUser = async (req, res) => {
       "is_valid_adhar",
       "is_valid_pan",
       "is_blocked",
+      "badge"
     ];
 
     allowed.forEach((key) => {

@@ -10,6 +10,7 @@ import {
   validateRouteDirection,
   computeRouteMatchScore,
 } from "../utils/helper/getCityFromLatLong.js";
+import { sendPushNotification } from "../utils/notification.js";
 dotenv.config();
 
 // export const saveDeliveryService = async (req, res) => {
@@ -218,7 +219,17 @@ export const saveDeliveryService = async (req, res) => {
     });
 
     const savedService = await newService.save();
-
+    if (req.user.fcm_token) {
+      await sendPushNotification(
+        req.user.fcm_token,
+        "Service Published",
+        "Your delivery service has been published successfully",
+        {
+          type: "delivery_service_created",
+          service_id: savedService._id.toString(),
+        }
+      );
+    }
     res.status(200).json({
       status: "success",
       message: "Your service has been successfully published",

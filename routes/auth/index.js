@@ -1,6 +1,6 @@
 import express from 'express'
 const router=express.Router()
-import { deleteAccountByEmail, editProfile, getMyProfile,loginController, resetPassword} from '../../controller/auth.js'
+import { deleteAccountByEmail, editProfile, getMyProfile,loginController, resetPassword, saveFcmToken} from '../../controller/auth.js'
 import  {registerController} from '../../controller/auth.js'
 import { uploadDocs } from "../../middlewares/upload.js";
 import resetPasswordRouter from "./forgot/index.js";
@@ -25,6 +25,7 @@ router.put(
 );
 
 router.get('/getUserDetails',verifyCustomToken,getMyProfile);
+router.post('/save-fcm-token',verifyCustomToken,saveFcmToken);
 router.delete('/deleteAccount',verifyCustomToken,deleteAccountByEmail);
 
 

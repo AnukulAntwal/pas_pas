@@ -670,3 +670,37 @@ export const deleteAccountByEmail = async (req, res) => {
     });
   }
 };
+
+export const saveFcmToken = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { fcm_token } = req.body;
+
+    if (!fcm_token) {
+      return res.status(400).json({
+        status: "fail",
+        message: "FCM token is required"
+      });
+    }
+
+    await User.findByIdAndUpdate(
+      userId,
+      {
+        $addToSet: {
+          fcm_tokens: fcm_token
+        }
+      }
+    );
+
+    return res.status(200).json({
+      status: "success",
+      message: "FCM token saved successfully"
+    });
+
+  } catch (error) {
+    return res.status(500).json({
+      status: "fail",
+      message: error.message
+    });
+  }
+};

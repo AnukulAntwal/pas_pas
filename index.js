@@ -12,6 +12,7 @@ import { fileURLToPath } from "url";
 import "./cron/verifyUsersCron.js" // 👈 THIS LINE IS MUST
 import "./cron/bookingCron.js" // 👈 THIS LINE IS MUST
 import appVersion from './routes/app/index.js';
+import admin from "./config/firebase.js";
 
 dotenv.config();
 
@@ -44,6 +45,7 @@ app.get("/contact", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "contactus.html"));
 });
 
+console.log("Firebase initialized:", admin.apps.length);
   
 // Connect to MongoDB
 mongoose

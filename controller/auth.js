@@ -674,7 +674,7 @@ export const deleteAccountByEmail = async (req, res) => {
 export const saveFcmToken = async (req, res) => {
   try {
     const userId = req.user._id;
-    const { fcm_token } = req.body.fcm_token ? req.body : req.query; // Accept from body or query
+    const { fcm_token } = req.query; // Accept from body or query
 
     if (!fcm_token) {
       return res.status(400).json({

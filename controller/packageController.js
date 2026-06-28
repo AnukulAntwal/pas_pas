@@ -7,6 +7,7 @@ import {
   validateRouteDirection,
   computeRouteMatchScore,
 } from "../utils/helper/getCityFromLatLong.js";
+import Notification from "../models/Notification.js";
 
 
 // export const savePackage = async (req, res) => {
@@ -161,7 +162,28 @@ export const savePackage = async (req, res) => {
     });
 
     const savedPackage = await newPackage.save();
+    // ✅ Send Push Notification to package owner
+    if (req.user.fcm_token) {
+      await sendPushNotification({
+        token: req.user.fcm_token,
+        title: "Parcel Published",
+        body: "Your parcel has been published successfully.",
+        data: {
+          type: "parcel_created",
+          parcel_id: savedPackage._id.toString(),
+        },
+      });
+    }
 
+    // ✅ Save Notification in DB
+    await Notification.create({
+      sender_id: req.user._id,
+      receiver_id: req.user._id,
+      reference_id: savedPackage._id,
+      message_type: "Parcel Published",
+      message_text: "Your parcel is now live and searchable. Transporters can find & send pickup requests.",
+      type: "parcel",
+    });
     res.status(200).json({
       status: "success",
       message: "Package published successfully",

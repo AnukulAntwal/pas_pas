@@ -11,6 +11,7 @@ import {
   computeRouteMatchScore,
 } from "../utils/helper/getCityFromLatLong.js";
 import { sendPushNotification } from "../utils/notification.js";
+import Notification from "../models/Notification.js";
 dotenv.config();
 
 // export const saveDeliveryService = async (req, res) => {
@@ -222,14 +223,22 @@ export const saveDeliveryService = async (req, res) => {
     if (req.user.fcm_token) {
       await sendPushNotification({
         token: req.user.fcm_token,
-        title: "Service Published",
-        body: "Your delivery service has been published successfully",
+        title: "Transport Published",
+        body: "Your Transport Service has been published successfully",
         data: {
           type: "delivery_service_created",
           service_id: savedService._id.toString(),
         },
       });
     }
+    await Notification.create({
+      sender_id: req.user._id,
+      receiver_id: req.user._id,
+      reference_id: savedService._id,
+      message_type: "Transport Published",
+      message_text: "Your Transport Service has been published successfully",
+      type: "message",
+    });
     res.status(200).json({
       status: "success",
       message: "Your service has been successfully published",

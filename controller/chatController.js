@@ -61,27 +61,31 @@ export const sendMessage = async (req, res) => {
     });
     console.log('Notification create - ', newNotification);
 
-    // Receiver details
-    const receiver = await User.findById(receiver_id);
+    const receiver = await User.findById(receiver_id)
+  .select("fcm_token");
 
-    // Sender details
-    const sender = await User.findById(sender_id);
+    const sender = await User.findById(sender_id)
+      .select("first_name last_name");
 
-   if (receiver?.fcm_token) {
-    try {
-      await sendPushNotification({
-        token: receiver.fcm_token,
-        title: `${sender.first_name} ${sender.last_name}`,
-        body: message,
-        data: {
-          type: "chat",
-          conversation_id: finalConversationId.toString(),
-        },
-      });
-    } catch (err) {
-      console.error("Push notification failed:", err.message);
+    if (receiver?.fcm_token) {
+      try {
+        await sendPushNotification({
+          token: receiver.fcm_token,
+          title: sender
+            ? `${sender.first_name} ${sender.last_name}`
+            : "New Message",
+          body: message,
+          data: {
+            type: "chat",
+            conversation_id: finalConversationId.toString(),
+            reference_id: reference_id.toString(),
+            sender_id: sender_id.toString(),
+          },
+        });
+      } catch (err) {
+        console.error("Push notification failed:", err.message);
+      }
     }
-  }
 
     res.status(200).json({
       status: "success",

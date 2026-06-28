@@ -220,15 +220,15 @@ export const saveDeliveryService = async (req, res) => {
 
     const savedService = await newService.save();
     if (req.user.fcm_token) {
-      await sendPushNotification(
-        req.user.fcm_token,
-        "Service Published",
-        "Your delivery service has been published successfully",
-        {
+      await sendPushNotification({
+        token: req.user.fcm_token,
+        title: "Service Published",
+        body: "Your delivery service has been published successfully",
+        data: {
           type: "delivery_service_created",
           service_id: savedService._id.toString(),
-        }
-      );
+        },
+      });
     }
     res.status(200).json({
       status: "success",

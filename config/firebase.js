@@ -4,5 +4,6 @@ import serviceAccount from "./firebase-service-account.json" with { type: "json"
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
+console.log("Firebase initialized:", admin.apps.length);
 
 export default admin;

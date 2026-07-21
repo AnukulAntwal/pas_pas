@@ -220,16 +220,20 @@ export const saveDeliveryService = async (req, res) => {
     });
 
     const savedService = await newService.save();
-    if (req.user.fcm_token) {
-      await sendPushNotification({
-        token: req.user.fcm_token,
-        title: "Transport Published",
-        body: "Your Transport Service has been published successfully",
-        data: {
-          type: "delivery_service_created",
-          service_id: savedService._id.toString(),
-        },
-      });
+      if (req.user.fcm_token) {
+      try {
+        await sendPushNotification({
+          token: req.user.fcm_token,
+          title: "Transport Published",
+          body: "Your Transport Service has been published successfully",
+          data: {
+            type: "delivery_service_created",
+            service_id: savedService._id.toString(),
+          },
+        });
+      } catch (err) {
+        console.error("Push notification failed:", err.message);
+      }
     }
     await Notification.create({
       sender_id: req.user._id,

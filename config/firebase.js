@@ -1,9 +1,13 @@
 import admin from "firebase-admin";
 import serviceAccount from "./firebase-service-account.json" with { type: "json" };
-//firebase-service-account.json is a file that contains the service account credentials for your Firebase project. It is used to authenticate your server with Firebase services. Make sure to keep this file secure and do not expose it publicly.
+
+console.log("Firebase Project:", serviceAccount.project_id);
+console.log("Firebase Client:", serviceAccount.client_email);
+
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
-console.log("Firebase initialized:", admin.apps.length);
+
+console.log("Firebase initialized successfully");
 
 export default admin;

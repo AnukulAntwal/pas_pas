@@ -7,6 +7,7 @@ import DeliveryService from "../models/DeliveryService.js";
 import { getNextConversationId } from "../utils/getNextId.js";
 import Notification from "../models/Notification.js";
 import Booking from "../models/Booking.js";
+import { sendPushNotification } from "../utils/notification.js";
 import {
   extractBlaBlaCarStops,
   filterStopsBetween,

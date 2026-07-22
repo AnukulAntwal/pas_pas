@@ -8,7 +8,7 @@ import { getNextConversationId } from "../utils/getNextId.js";
 import mongoose from "mongoose";
 import moment from "moment-timezone";
 import Notification from "../models/Notification.js";
-
+import { sendPushNotification } from "../utils/notification.js";
 
 export const sendMessage = async (req, res) => {
   try {

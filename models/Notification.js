@@ -8,7 +8,7 @@ const notificationSchema = new mongoose.Schema(
     type: { type: String, enum: ["message"], default: "message" }, // can extend later
     message_text: { type: String, default: "" },
     message_type: { type: String, default: "" },
-    conversation_id: { type: Number, required: true },
+    conversation_id: { type: Number, default: null },
     reference_id: { type: mongoose.Schema.Types.ObjectId },
     is_read: { type: Number, default: 0 },
     status: { type: String, enum: ["active", "deleted"], default: "active" },

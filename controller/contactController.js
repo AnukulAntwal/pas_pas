@@ -33,3 +33,18 @@ export const saveContact = async (req, res) => {
     });
   }
 };
+
+export const getContacts = async (req, res) => {
+  try {
+    const contacts = await ContactUs.find().sort({ created_at: -1 });
+    res.status(200).json({
+      status: "success",
+      data: contacts,
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: "error",
+      message: error.message,
+    });
+  }
+};

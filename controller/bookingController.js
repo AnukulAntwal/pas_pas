@@ -112,9 +112,10 @@ export const bookServiceOrPackage = async (req, res) => {
     let sentMessage = message && message.trim() !== ""
       ? message
       : "Your service has been booked.";
+    let conversation_id = null; // ✅ Declare outside
 
     if (receiverId) {
-      const conversation_id = await getNextConversationId();
+      conversation_id = await getNextConversationId();
 
       // 💬 CHAT
       await Chat.create({
@@ -192,7 +193,7 @@ export const bookServiceOrPackage = async (req, res) => {
       : null;
     const receiverUser = await User.findById(receiverId).select("fcm_token");
         // 🔔 Push Notification
-    if (receiverUser?.fcm_token) {
+    if (receiverUser?.fcm_token && conversation_id) {
 
       let title = "";
       let body = "";

@@ -217,6 +217,7 @@ export const bookServiceOrPackage = async (req, res) => {
         },
       });
     }
+    console.log('conversation_id - ',conversation_id);
 
     return res.status(200).json({
       status: "success",

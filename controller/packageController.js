@@ -164,16 +164,24 @@ export const savePackage = async (req, res) => {
 
     const savedPackage = await newPackage.save();
     // ✅ Send Push Notification to package owner
+    // ✅ Send Push Notification to package owner
     if (req.user.fcm_token) {
-      await sendPushNotification({
-        token: req.user.fcm_token,
-        title: "Parcel Published",
-        body: "Your parcel has been published successfully.",
-        data: {
-          type: "parcel_created",
-          parcel_id: savedPackage._id.toString(),
-        },
-      });
+      try {
+        await sendPushNotification({
+          token: req.user.fcm_token,
+          title: "Parcel Published",
+          body: "Your parcel has been published successfully.",
+          data: {
+            type: "parcel_created",
+            parcel_id: savedPackage._id.toString(),
+          },
+        });
+
+        console.log("✅ Parcel push notification sent");
+      } catch (notificationError) {
+        console.error("⚠️ Parcel notification failed:", notificationError);
+        // Don't fail parcel publishing if notification fails
+      }
     }
 
     // ✅ Save Notification in DB

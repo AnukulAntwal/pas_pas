@@ -1095,7 +1095,7 @@ export const updateDeliveryService = async (req, res) => {
         data: [],
       });
     }
-// console.log("Incoming date_time:", req.body.date_time);
+
     const existingService = await DeliveryService.findById(service_id);
 
     if (!existingService) {
@@ -1106,17 +1106,35 @@ export const updateDeliveryService = async (req, res) => {
       });
     }
 
+    // ============================================
+    // CHECK ACTIVE BOOKING BEFORE UPDATE
+    // ============================================
+
+    const booking = await Booking.findOne({
+      reference_id: service_id,
+      is_booked: 1,
+    });
+
+    const bookedUserId = booking?.booked_by || null;
+    const conversation_id = booking?.conversation_id || null;
+
+    console.log("Active booking:", booking?._id);
+    console.log("Booked user:", bookedUserId);
+
     const googleApiKey = process.env.GOOGLE_MAPS_API_KEY;
 
     let route_path = existingService.route_path;
     let road_stops = existingService.road_stops;
 
-    // ✅ Only recalculate if location changed
+    // ============================================
+    // CHECK LOCATION CHANGE
+    // ============================================
+
     const locationChanged =
-      start_lat &&
-      start_long &&
-      end_lat &&
-      end_long &&
+      start_lat !== undefined &&
+      start_long !== undefined &&
+      end_lat !== undefined &&
+      end_long !== undefined &&
       (
         start_lat !== existingService.start_lat ||
         start_long !== existingService.start_long ||
@@ -1124,10 +1142,15 @@ export const updateDeliveryService = async (req, res) => {
         end_long !== existingService.end_long
       );
 
+    // ============================================
+    // RECALCULATE ROUTE
+    // ============================================
+
     if (locationChanged) {
       route_path = [];
 
-      const mainUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${start_lat},${start_long}&destination=${end_lat},${end_long}&key=${googleApiKey}`;
+      const mainUrl =
+        `https://maps.googleapis.com/maps/api/directions/json?origin=${start_lat},${start_long}&destination=${end_lat},${end_long}&key=${googleApiKey}`;
 
       const mainResponse = await axios.get(mainUrl);
 
@@ -1141,10 +1164,13 @@ export const updateDeliveryService = async (req, res) => {
       const mainSteps =
         mainResponse.data.routes[0]?.legs[0]?.steps || [];
 
-      // ✅ Start point
-      route_path.push({ lat: start_lat, long: start_long });
+      // Start point
+      route_path.push({
+        lat: start_lat,
+        long: start_long,
+      });
 
-      // ✅ Collect step end locations
+      // Step end locations
       mainSteps.forEach((step) => {
         route_path.push({
           lat: step.end_location.lat,
@@ -1152,9 +1178,10 @@ export const updateDeliveryService = async (req, res) => {
         });
       });
 
-      // ✅ Direction based extension (same as save)
+      // Direction based extension
       if (route_path.length >= 2) {
         const extendDistanceKm = 20;
+
         const last = route_path[route_path.length - 1];
         const secondLast = route_path[route_path.length - 2];
 
@@ -1176,7 +1203,7 @@ export const updateDeliveryService = async (req, res) => {
         }
       }
 
-      // ✅ Recalculate road stops
+      // Recalculate road stops
       road_stops = await getRoadStops(
         start_lat,
         start_long,
@@ -1185,7 +1212,7 @@ export const updateDeliveryService = async (req, res) => {
         googleApiKey
       );
 
-      // ✅ City enrichment (same logic as save)
+      // City enrichment
       const SAMPLE_EVERY = 4;
 
       route_path = await Promise.all(
@@ -1196,14 +1223,25 @@ export const updateDeliveryService = async (req, res) => {
               point.long,
               googleApiKey
             );
-            return { ...point, city };
+
+            return {
+              ...point,
+              city,
+            };
           }
-          return { ...point, city: null };
+
+          return {
+            ...point,
+            city: null,
+          };
         })
       );
     }
 
-    // ✅ Prepare update object safely
+    // ============================================
+    // DATE TIME
+    // ============================================
+
     let dateTimeUTC;
 
     if (date_time) {
@@ -1217,22 +1255,110 @@ export const updateDeliveryService = async (req, res) => {
         dateTimeUTC = parsed.utc().toDate();
       }
     }
+
+    // ============================================
+    // PREPARE UPDATE DATA
+    // ============================================
+
     const updateData = {
       ...otherFields,
-      ...(start_lat && { start_lat }),
-      ...(start_long && { start_long }),
-      ...(end_lat && { end_lat }),
-      ...(end_long && { end_long }),
+
+      ...(start_lat !== undefined && { start_lat }),
+      ...(start_long !== undefined && { start_long }),
+      ...(end_lat !== undefined && { end_lat }),
+      ...(end_long !== undefined && { end_long }),
+
       ...(locationChanged && { route_path }),
       ...(locationChanged && { road_stops }),
-      ...(dateTimeUTC && { date_time: dateTimeUTC }),
+
+      ...(dateTimeUTC && {
+        date_time: dateTimeUTC,
+      }),
     };
 
-    const updatedService = await DeliveryService.findByIdAndUpdate(
-      service_id,
-      updateData,
-      { new: true }
-    );
+    // ============================================
+    // UPDATE SERVICE
+    // ============================================
+
+    const updatedService =
+      await DeliveryService.findByIdAndUpdate(
+        service_id,
+        updateData,
+        { new: true }
+      );
+
+    // ============================================
+    // 🔔 NOTIFY BOOKED USER
+    // ============================================
+
+    if (booking && bookedUserId) {
+
+      const message_text =
+        "The transport service you booked has been updated by the owner. Please review the updated details.";
+
+      // --------------------------------------------
+      // SAVE NOTIFICATION
+      // --------------------------------------------
+
+      await Notification.create({
+        sender_id: existingService.uid,
+        receiver_id: bookedUserId,
+        conversation_id: conversation_id,
+        message_type: "Updated",
+        reference_id: service_id,
+        message_text: message_text,
+        type: "message",
+      });
+
+      console.log(
+        "Notification created for booked user:",
+        bookedUserId
+      );
+
+      // --------------------------------------------
+      // PUSH NOTIFICATION
+      // --------------------------------------------
+
+      const bookedUser = await User.findById(bookedUserId)
+        .select("fcm_token");
+
+      if (bookedUser?.fcm_token) {
+
+        await sendPushNotification({
+          token: bookedUser.fcm_token,
+
+          title: "Transport Service Updated",
+
+          body: message_text,
+
+          data: {
+            type: "transport_service_updated",
+            booking_id: booking._id.toString(),
+            reference_id: service_id.toString(),
+            conversation_id: conversation_id
+              ? conversation_id.toString()
+              : "",
+            updated_by: "owner",
+          },
+        });
+
+        console.log(
+          "Push notification sent to booked user:",
+          bookedUserId
+        );
+
+      } else {
+
+        console.log(
+          "Booked user has no FCM token:",
+          bookedUserId
+        );
+      }
+    }
+
+    // ============================================
+    // RESPONSE
+    // ============================================
 
     return res.status(200).json({
       status: "success",
@@ -1241,7 +1367,12 @@ export const updateDeliveryService = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Error updating delivery service:", error);
+
+    console.error(
+      "Error updating delivery service:",
+      error
+    );
+
     return res.status(500).json({
       status: "fail",
       message: error.message,
@@ -1366,65 +1497,108 @@ export const updatePackage = async (req, res) => {
       ...otherFields
     } = req.body || {};
 
+    const userId = req.user._id;
+
+    // -----------------------------------------
+    // Validation
+    // -----------------------------------------
     if (!package_id) {
       return res.status(400).json({
         status: "fail",
         message: "Missing package_id",
+        data: [],
       });
     }
 
+    // -----------------------------------------
+    // Find existing package
+    // -----------------------------------------
     const existingPackage = await Package.findById(package_id);
 
     if (!existingPackage) {
       return res.status(404).json({
         status: "fail",
         message: "Package not found",
+        data: [],
       });
     }
+
+    // -----------------------------------------
+    // Ownership check
+    // -----------------------------------------
+    if (existingPackage.uid.toString() !== userId.toString()) {
+      return res.status(403).json({
+        status: "fail",
+        message: "You can update only your own package",
+        data: [],
+      });
+    }
+
+    // -----------------------------------------
+    // Check active booking
+    // -----------------------------------------
+    const booking = await Booking.findOne({
+      reference_id: package_id,
+      is_booked: 1,
+    });
+
+    const bookedUserId = booking?.booked_by || null;
+    const conversation_id = booking?.conversation_id || null;
 
     const googleApiKey = process.env.GOOGLE_MAPS_API_KEY;
 
     let route_path = existingPackage.route_path;
     let road_stops = existingPackage.road_stops;
 
-    // ✅ Check if location changed
+    // -----------------------------------------
+    // Check location changed
+    // -----------------------------------------
     const locationChanged =
-      pickup_lat &&
-      pickup_long &&
-      drop_lat &&
-      drop_long &&
+      pickup_lat !== undefined &&
+      pickup_long !== undefined &&
+      drop_lat !== undefined &&
+      drop_long !== undefined &&
       (
-        pickup_lat !== existingPackage.pickup_lat ||
-        pickup_long !== existingPackage.pickup_long ||
-        drop_lat !== existingPackage.drop_lat ||
-        drop_long !== existingPackage.drop_long
+        Number(pickup_lat) !== Number(existingPackage.pickup_lat) ||
+        Number(pickup_long) !== Number(existingPackage.pickup_long) ||
+        Number(drop_lat) !== Number(existingPackage.drop_lat) ||
+        Number(drop_long) !== Number(existingPackage.drop_long)
       );
 
-    // --------------------------------------------------
-    // ✅ Recalculate only if location changed
-    // --------------------------------------------------
+    // -----------------------------------------
+    // Recalculate route if location changed
+    // -----------------------------------------
     if (locationChanged) {
       route_path = [];
 
-      const mainUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${pickup_lat},${pickup_long}&destination=${drop_lat},${drop_long}&key=${googleApiKey}`;
+      const mainUrl =
+        `https://maps.googleapis.com/maps/api/directions/json` +
+        `?origin=${pickup_lat},${pickup_long}` +
+        `&destination=${drop_lat},${drop_long}` +
+        `&key=${googleApiKey}`;
 
       const mainResponse = await axios.get(mainUrl);
 
       if (mainResponse.data.status !== "OK") {
         console.error("Google API Error:", mainResponse.data);
+
         return res.status(400).json({
           status: "fail",
           message: "Directions API error",
+          data: [],
         });
       }
 
       const mainSteps =
         mainResponse.data.routes[0]?.legs[0]?.steps || [];
 
-      // ✅ Add pickup
-      route_path.push({ lat: pickup_lat, long: pickup_long });
+      // Add pickup
+      route_path.push({
+        lat: Number(pickup_lat),
+        long: Number(pickup_long),
+      });
 
-      // ✅ Add steps (optimized sampling)
+      // Add steps
       mainSteps.forEach((step, index) => {
         if (index % 2 === 0) {
           route_path.push({
@@ -1434,7 +1608,9 @@ export const updatePackage = async (req, res) => {
         }
       });
 
-      // ✅ Direction-based extension (same as save)
+      // -----------------------------------------
+      // Direction based extension
+      // -----------------------------------------
       if (route_path.length >= 2) {
         const extendDistanceKm = 20;
 
@@ -1456,7 +1632,9 @@ export const updatePackage = async (req, res) => {
         }
       }
 
-      // ✅ Road stops
+      // -----------------------------------------
+      // Road stops
+      // -----------------------------------------
       road_stops = await getRoadStops(
         pickup_lat,
         pickup_long,
@@ -1465,7 +1643,9 @@ export const updatePackage = async (req, res) => {
         googleApiKey
       );
 
-      // ✅ City enrichment (same as delivery)
+      // -----------------------------------------
+      // City enrichment
+      // -----------------------------------------
       const SAMPLE_EVERY = 4;
 
       route_path = await Promise.all(
@@ -1476,14 +1656,24 @@ export const updatePackage = async (req, res) => {
               point.long,
               googleApiKey
             );
-            return { ...point, city };
+
+            return {
+              ...point,
+              city,
+            };
           }
-          return { ...point, city: null };
+
+          return {
+            ...point,
+            city: null,
+          };
         })
       );
     }
 
-    // ✅ Date handling (same as delivery)
+    // -----------------------------------------
+    // Date handling
+    // -----------------------------------------
     let dateTimeUTC;
 
     if (date_time) {
@@ -1498,35 +1688,126 @@ export const updatePackage = async (req, res) => {
       }
     }
 
-    // ✅ Final update object
+    // -----------------------------------------
+    // Final update object
+    // -----------------------------------------
     const updateData = {
       ...otherFields,
-      ...(pickup_lat && { pickup_lat }),
-      ...(pickup_long && { pickup_long }),
-      ...(drop_lat && { drop_lat }),
-      ...(drop_long && { drop_long }),
-      ...(locationChanged && { route_path }),
-      ...(locationChanged && { road_stops }),
-      ...(dateTimeUTC && { date_time: dateTimeUTC }),
+
+      ...(pickup_lat !== undefined && {
+        pickup_lat,
+      }),
+
+      ...(pickup_long !== undefined && {
+        pickup_long,
+      }),
+
+      ...(drop_lat !== undefined && {
+        drop_lat,
+      }),
+
+      ...(drop_long !== undefined && {
+        drop_long,
+      }),
+
+      ...(locationChanged && {
+        route_path,
+        road_stops,
+      }),
+
+      ...(dateTimeUTC && {
+        date_time: dateTimeUTC,
+      }),
     };
 
+    // -----------------------------------------
+    // Update package
+    // -----------------------------------------
     const updatedPackage = await Package.findByIdAndUpdate(
       package_id,
       updateData,
-      { new: true }
+      {
+        new: true,
+      }
     );
 
+    if (!updatedPackage) {
+      return res.status(404).json({
+        status: "fail",
+        message: "Package not found while updating",
+        data: [],
+      });
+    }
+
+    // ==================================================
+    // BOOKED PACKAGE
+    // Send DB Notification + FCM
+    // ==================================================
+    if (booking && bookedUserId) {
+      const message_text =
+        "The package you booked has been updated by the owner. Please review the updated details.";
+
+      // -----------------------------------------
+      // DB Notification
+      // -----------------------------------------
+      await Notification.create({
+        sender_id: userId,
+        receiver_id: bookedUserId,
+        reference_id: package_id,
+        conversation_id,
+        message_type: "Updated",
+        message_text,
+        type: "message",
+      });
+
+      // -----------------------------------------
+      // Get booked user's FCM token
+      // -----------------------------------------
+      const bookedUser = await User.findById(bookedUserId)
+        .select("fcm_token");
+
+      // -----------------------------------------
+      // FCM Push
+      // -----------------------------------------
+      if (bookedUser?.fcm_token) {
+        await sendPushNotification({
+          token: bookedUser.fcm_token,
+
+          title: "Package Updated",
+
+          body: message_text,
+
+          data: {
+            type: "package_updated",
+            booking_id: booking._id.toString(),
+            reference_id: package_id.toString(),
+            conversation_id: conversation_id
+              ? conversation_id.toString()
+              : "",
+            updated_by: "owner",
+          },
+        });
+      }
+    }
+
+    // -----------------------------------------
+    // Success
+    // -----------------------------------------
     return res.status(200).json({
       status: "success",
-      message: "Package updated successfully",
+      message: booking
+        ? "Package updated successfully and booked user notified"
+        : "Package updated successfully",
       data: updatedPackage,
     });
 
   } catch (error) {
     console.error("❌ Error updating package:", error);
+
     return res.status(500).json({
       status: "fail",
       message: error.message,
+      data: [],
     });
   }
 };
@@ -1537,7 +1818,9 @@ export const deleteParcelOrDeliveryService = async (req, res) => {
     const type = Number(req.body.type);
     const userId = req.user._id;
 
-    // ✅ Validation
+    // -----------------------------------------
+    // Validation
+    // -----------------------------------------
     if (!reference_id || (type !== 0 && type !== 1)) {
       return res.status(400).json({
         status: "fail",
@@ -1546,15 +1829,16 @@ export const deleteParcelOrDeliveryService = async (req, res) => {
       });
     }
 
-    let Model;
+    // -----------------------------------------
+    // Select Model
+    // -----------------------------------------
+    const Model = type === 1
+      ? DeliveryService
+      : Package;
 
-    if (type === 1) {
-      Model = DeliveryService;
-    } else if(type == 0){
-      Model = Package;
-    }
-
-    // ✅ Find record
+    // -----------------------------------------
+    // Find record
+    // -----------------------------------------
     const data = await Model.findById(reference_id);
 
     if (!data) {
@@ -1565,7 +1849,9 @@ export const deleteParcelOrDeliveryService = async (req, res) => {
       });
     }
 
-    // 🔐 Ownership check
+    // -----------------------------------------
+    // Ownership check
+    // -----------------------------------------
     if (data.uid.toString() !== userId.toString()) {
       return res.status(403).json({
         status: "fail",
@@ -1574,65 +1860,128 @@ export const deleteParcelOrDeliveryService = async (req, res) => {
       });
     }
 
-    // 🔍 Check booking
+    // -----------------------------------------
+    // Check active booking
+    // -----------------------------------------
     const booking = await Booking.findOne({
       reference_id,
       is_booked: 1,
     });
 
-    // =========================
+    // ==================================================
     // CASE 1: BOOKED
-    // =========================
-    let delete_reason_message = "";
-
+    // ==================================================
     if (booking) {
 
-      // ❌ Reason required
+      // -----------------------------------------
+      // Delete reason required
+      // -----------------------------------------
       if (!delete_reason || delete_reason.trim() === "") {
         return res.status(400).json({
           status: "fail",
-          message: "Delete reason is required for booked Transport/Parcels",
+          message:
+            "Delete reason is required for booked Transport/Package",
           data: [],
         });
       }
-      const conversation_id = await getNextConversationId();
-      delete_reason_message = `The ${type === 1 ? "Transport Service" : "Package"} you booked has been removed by the owner with Reason: ${delete_reason}`;
 
+      const bookedUserId = booking.booked_by;
 
-      // 🔔 Send notification to booked user
+      // IMPORTANT:
+      // Use existing conversation_id from booking
+      const conversation_id = booking.conversation_id || null;
+
+      const itemName = type === 1
+        ? "transport service"
+        : "package";
+
+      const notificationTitle = type === 1
+        ? "Transport Service Deleted"
+        : "Package Deleted";
+
+      const notificationType = type === 1
+        ? "transport_service_deleted"
+        : "package_deleted";
+
+      const message_text =
+        `The ${itemName} you booked has been removed by the owner. Reason: ${delete_reason}`;
+
+      // -----------------------------------------
+      // DB Notification
+      // -----------------------------------------
       await Notification.create({
         sender_id: userId,
-        receiver_id: booking.booked_by,
+        receiver_id: bookedUserId,
         reference_id,
         conversation_id,
         message_type: "Deleted",
-        message_text: delete_reason_message ? delete_reason_message : delete_reason,
+        message_text,
+        type: "message",
       });
 
-      // 🗑️ Delete after notification
+      // -----------------------------------------
+      // Get booked user FCM token
+      // -----------------------------------------
+      const bookedUser = await User.findById(bookedUserId)
+        .select("fcm_token");
+
+      // -----------------------------------------
+      // FCM Push Notification
+      // -----------------------------------------
+      if (bookedUser?.fcm_token) {
+        await sendPushNotification({
+          token: bookedUser.fcm_token,
+
+          title: notificationTitle,
+
+          body: message_text,
+
+          data: {
+            type: notificationType,
+            booking_id: booking._id.toString(),
+            reference_id: reference_id.toString(),
+            conversation_id: conversation_id
+              ? conversation_id.toString()
+              : "",
+            deleted_by: "owner",
+            delete_reason: delete_reason.toString(),
+          },
+        });
+      }
+
+      // -----------------------------------------
+      // Delete record
+      // -----------------------------------------
       await Model.findByIdAndDelete(reference_id);
 
       return res.status(200).json({
         status: "success",
-        message: "Deleted successfully and user notified",
+        message:
+          type === 1
+            ? "Transport service deleted successfully and booked user notified"
+            : "Package deleted successfully and booked user notified",
         data: [],
       });
     }
 
-    // =========================
+    // ==================================================
     // CASE 2: NOT BOOKED
-    // =========================
+    // ==================================================
     await Model.findByIdAndDelete(reference_id);
 
     return res.status(200).json({
       status: "success",
-      message: "Deleted successfully",
+      message:
+        type === 1
+          ? "Transport service deleted successfully"
+          : "Package deleted successfully",
       data: [],
     });
 
   } catch (error) {
-    console.error("Error deleting item:", error);
-    res.status(500).json({
+    console.error("❌ Error deleting item:", error);
+
+    return res.status(500).json({
       status: "fail",
       message: error.message,
       data: [],

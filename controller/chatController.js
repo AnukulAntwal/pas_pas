@@ -8,7 +8,7 @@ import { getNextConversationId } from "../utils/getNextId.js";
 import mongoose from "mongoose";
 import moment from "moment-timezone";
 import Notification from "../models/Notification.js";
-
+import { sendPushNotification } from "../utils/notification.js";
 
 export const sendMessage = async (req, res) => {
   try {
@@ -60,7 +60,33 @@ export const sendMessage = async (req, res) => {
       type: "message",
     });
     console.log('Notification create - ', newNotification);
-    
+
+    const receiver = await User.findById(receiver_id)
+  .select("fcm_token");
+
+    const sender = await User.findById(sender_id)
+      .select("first_name last_name");
+
+    if (receiver?.fcm_token) {
+      try {
+        await sendPushNotification({
+          token: receiver.fcm_token,
+          title: sender
+            ? `${sender.first_name} ${sender.last_name}`
+            : "New Message",
+          body: message,
+          data: {
+            type: "chat",
+            conversation_id: finalConversationId.toString(),
+            reference_id: reference_id.toString(),
+            sender_id: sender_id.toString(),
+          },
+        });
+      } catch (err) {
+        console.error("Push notification failed:", err.message);
+      }
+    }
+
     res.status(200).json({
       status: "success",
       message: "Message sent successfully",

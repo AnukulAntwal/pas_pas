@@ -136,6 +136,10 @@ const userSchema = new mongoose.Schema(
     aadhar_resubmit_count: { type: Number, default: 0 },
     resetPasswordToken: { type: String },
     resetPasswordExpire: { type: Date },
+    fcm_token: {
+    type: String,
+    default: null
+  }
   },
   {
     timestamps: true,

@@ -7,6 +7,7 @@ import DeliveryService from "../models/DeliveryService.js";
 import { getNextConversationId } from "../utils/getNextId.js";
 import Notification from "../models/Notification.js";
 import Booking from "../models/Booking.js";
+import { sendPushNotification } from "../utils/notification.js";
 import {
   extractBlaBlaCarStops,
   filterStopsBetween,
@@ -111,9 +112,10 @@ export const bookServiceOrPackage = async (req, res) => {
     let sentMessage = message && message.trim() !== ""
       ? message
       : "Your service has been booked.";
+    let conversation_id = null; // ✅ Declare outside
 
     if (receiverId) {
-      const conversation_id = await getNextConversationId();
+      conversation_id = await getNextConversationId();
 
       // 💬 CHAT
       await Chat.create({
@@ -189,6 +191,34 @@ export const bookServiceOrPackage = async (req, res) => {
           .select("first_name last_name phone_number email badge is_verified_user")
           .lean()
       : null;
+    const receiverUser = await User.findById(receiverId).select("fcm_token");
+        // 🔔 Push Notification
+    if (receiverUser?.fcm_token && conversation_id) {
+
+      let title = "";
+      let body = "";
+
+      if (type === 1) {
+        title = "Transport Booked";
+        body = "Your transport service has been booked.";
+      } else {
+        title = "Parcel Booked";
+        body = "Your parcel has been booked.";
+      }
+
+      await sendPushNotification({
+        token: receiverUser.fcm_token,
+        title,
+        body,
+        data: {
+          type: type === 1 ? "transport_booked" : "parcel_booked",
+          booking_id: booking._id.toString(),
+          reference_id: reference_id.toString(),
+          conversation_id: conversation_id.toString(),
+        },
+      });
+    }
+    console.log('conversation_id - ',conversation_id);
 
     return res.status(200).json({
       status: "success",
@@ -336,6 +366,47 @@ export const cancelBookingByReference = async (req, res) => {
         message_text,
         type: "message"
       });
+
+      // 🔔 Send Push Notification
+    const receiverUser = await User.findById(receiverId).select("fcm_token");
+
+    if (receiverUser?.fcm_token) {
+
+      let title = "";
+      let body = "";
+
+      if (isOwner) {
+        // Owner cancelled
+        title = booking.type === 1
+          ? "Transport Booking Cancelled"
+          : "Parcel Booking Cancelled";
+
+        body = `Your booking has been cancelled by the owner.${cancel_reason ? ` Reason: ${cancel_reason}` : ""}`;
+      } else {
+        // Booker cancelled
+        title = booking.type === 1
+          ? "Transport Booking Cancelled"
+          : "Parcel Booking Cancelled";
+
+        body = `The user has cancelled the booking.${cancel_reason ? ` Reason: ${cancel_reason}` : ""}`;
+      }
+
+      await sendPushNotification({
+        token: receiverUser.fcm_token,
+        title,
+        body,
+        data: {
+          type:
+            booking.type === 1
+              ? "transport_booking_cancelled"
+              : "parcel_booking_cancelled",
+          booking_id: booking._id.toString(),
+          reference_id: reference_id.toString(),
+          conversation_id: conversation_id.toString(),
+          cancelled_by: isOwner ? "owner" : "booker",
+        },
+      });
+    }
 
       await Chat.updateMany(
         { conversation_id: booking.conversation_id },

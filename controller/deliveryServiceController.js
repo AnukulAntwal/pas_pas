@@ -535,12 +535,50 @@ console.log("dayEnd:", dayEnd);
   }
 };
 
+// export const deleteDeliveryService = async (req, res) => {
+//   try {
+//     const { service_id } = req.query; // id aayegi from URL params
+
+//     // Check if service exists
+//     const service = await DeliveryService.findById(service_id);
+//     if (!service) {
+//       return res.status(404).json({
+//         status: "fail",
+//         message: "Service not found",
+//         data: [],
+//       });
+//     }
+
+//     // Delete the service
+//     const deletedService = await DeliveryService.findByIdAndDelete(service_id);
+
+//     return res.status(200).json({
+//       status: "success",
+//       message: "Service deleted successfully",
+//       data: [],
+//     });
+//   } catch (error) {
+//     console.error("Error deleting service:", error);
+//     res.status(500).json({
+//       status: "fail",
+//       message: "Internal Server Error",
+//       data: [],
+//     });
+//   }
+// };
+
+
 export const deleteDeliveryService = async (req, res) => {
   try {
-    const { service_id } = req.query; // id aayegi from URL params
+    const { service_id } = req.query;
+    const ownerId = req.user._id;
 
-    // Check if service exists
+    // ============================================
+    // 1. Check if service exists
+    // ============================================
+
     const service = await DeliveryService.findById(service_id);
+
     if (!service) {
       return res.status(404).json({
         status: "fail",
@@ -549,19 +587,167 @@ export const deleteDeliveryService = async (req, res) => {
       });
     }
 
-    // Delete the service
-    const deletedService = await DeliveryService.findByIdAndDelete(service_id);
+    // ============================================
+    // 2. Check if logged-in user is owner
+    // ============================================
+
+    if (service.uid.toString() !== ownerId.toString()) {
+      return res.status(403).json({
+        status: "fail",
+        message: "You are not allowed to delete this service",
+        data: [],
+      });
+    }
+
+    // ============================================
+    // 3. FIND ACTIVE BOOKING BEFORE DELETE
+    // ============================================
+
+    const booking = await Booking.findOne({
+      reference_id: service_id,
+      is_booked: 1,
+    });
+
+    console.log("Booking found before delete:", booking);
+
+    // Save booked user and conversation before deleting anything
+    const bookedUserId = booking?.booked_by || null;
+    const conversation_id = booking?.conversation_id || null;
+
+    // ============================================
+    // 4. DELETE SERVICE
+    // ============================================
+
+    await DeliveryService.findByIdAndDelete(service_id);
+
+    // ============================================
+    // 5. IF SERVICE WAS BOOKED
+    //    Notify the booked user
+    // ============================================
+
+    if (booking && bookedUserId) {
+
+      // --------------------------------------------
+      // Update booking
+      // --------------------------------------------
+
+      booking.is_booked = 0;
+      booking.status = 0;
+      booking.booking_type = "Cancelled";
+      booking.cancel_reason = "Service deleted by owner";
+      booking.booked_by = null;
+
+      await booking.save();
+
+      // --------------------------------------------
+      // Notification message
+      // --------------------------------------------
+
+      const message_text =
+        "The transport service you booked has been deleted by the owner.";
+
+      // --------------------------------------------
+      // Create notification
+      // --------------------------------------------
+
+      await Notification.create({
+        sender_id: ownerId,
+        receiver_id: bookedUserId,
+        conversation_id: conversation_id,
+        reference_id: service_id,
+        message_type: "Deleted",
+        message_text: message_text,
+        type: "message",
+      });
+
+      // --------------------------------------------
+      // Chat message
+      // --------------------------------------------
+
+      if (conversation_id) {
+        await Chat.create({
+          conversation_id: conversation_id,
+          conversation_for: 1,
+          reference_id: service_id,
+          sender_id: ownerId,
+          receiver_id: bookedUserId,
+          message: message_text,
+          unread_count: 1,
+          is_read: 0,
+        });
+
+        // Disable old conversation
+        await Chat.updateMany(
+          { conversation_id: conversation_id },
+          { $set: { is_disabled: 1 } }
+        );
+      }
+
+      // --------------------------------------------
+      // PUSH NOTIFICATION
+      // --------------------------------------------
+
+      const bookedUser = await User.findById(bookedUserId)
+        .select("fcm_token");
+
+      console.log(
+        "Booked user:",
+        bookedUserId,
+        "FCM:",
+        bookedUser?.fcm_token
+      );
+
+      if (bookedUser?.fcm_token) {
+
+        await sendPushNotification({
+          token: bookedUser.fcm_token,
+
+          title: "Transport Service Deleted",
+
+          body: "The transport service you booked has been deleted by the owner.",
+
+          data: {
+            type: "transport_service_deleted",
+            booking_id: booking._id.toString(),
+            reference_id: service_id.toString(),
+            conversation_id: conversation_id
+              ? conversation_id.toString()
+              : "",
+            deleted_by: "owner",
+          },
+        });
+
+        console.log(
+          "Push notification sent to booked user:",
+          bookedUserId
+        );
+      } else {
+        console.log(
+          "Booked user does not have FCM token:",
+          bookedUserId
+        );
+      }
+    }
+
+    // ============================================
+    // 6. SUCCESS RESPONSE
+    // ============================================
 
     return res.status(200).json({
       status: "success",
-      message: "Service deleted successfully",
+      message: booking
+        ? "Service deleted successfully and booked user notified"
+        : "Service deleted successfully",
       data: [],
     });
+
   } catch (error) {
+
     console.error("Error deleting service:", error);
-    res.status(500).json({
+
+    return res.status(500).json({
       status: "fail",
-      message: "Internal Server Error",
+      message: error.message || "Internal Server Error",
       data: [],
     });
   }
